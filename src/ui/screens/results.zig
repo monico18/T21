@@ -1,0 +1,150 @@
+const std = @import("std");
+const vaxis = @import("vaxis");
+const vxfw = vaxis.vxfw;
+
+const Model = @import("../model.zig").Model;
+const GameState = @import("../../game/state.zig").GameState;
+const RoundOutcome = @import("../../game/rules.zig").RoundOutcome;
+const ButtonWidget = @import("../widgets/button_widget.zig").ButtonWidget;
+
+pub const ResultsScreen = struct {
+    game: *GameState,
+    play_again_btn: ButtonWidget,
+    quit_btn: ButtonWidget,
+    selected: usize = 0,
+
+    pub fn init(model: *Model, game: *GameState) ResultsScreen {
+        // ----------------- PLAY AGAIN -----------------
+        const onPlayAgain = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *ResultsScreen = @ptrCast(@alignCast(userdata.?));
+                self.game.resetForNextRound();
+
+                // model stored in quit_btn.userdata
+                const model_ptr: *Model = @ptrCast(@alignCast(self.quit_btn.userdata.?));
+
+                model_ptr.current_screen = .betting;
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // --------------------- QUIT --------------------
+        const onQuit = struct {
+            fn cb(_: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                ctx.quit = true;
+            }
+        }.cb;
+
+        // Return ResultsScreen with play_again_btn.userdata left null. The
+        // caller that stores the returned ResultsScreen should set
+        // play_again_btn.userdata = &stored_results_screen to avoid taking the
+        // address of a stack-local variable here.
+        return ResultsScreen{
+            .game = game,
+            .play_again_btn = .{ .label = "Play Again", .onClick = onPlayAgain, .userdata = null },
+            .quit_btn = .{ .label = "Quit", .onClick = onQuit, .userdata = model },
+            .selected = 0,
+        };
+    }
+
+    pub fn handleEvent(
+        self: *ResultsScreen,
+        _: *Model,
+        ctx: *vxfw.EventContext,
+        event: vxfw.Event,
+    ) !void {
+        switch (event) {
+            .init => try ctx.requestFocus(self.play_again_btn.widget()),
+
+            .key_press => |key| {
+                if (key.matches('q', .{}) or key.matches('c', .{ .ctrl = true })) {
+                    ctx.quit = true;
+                    return;
+                }
+
+                if (key.matches(vaxis.Key.up, .{})) {
+                    if (self.selected > 0) self.selected -= 1;
+                    try updateFocus(self, ctx);
+                    _ = ctx.consumeAndRedraw();
+                    return;
+                }
+
+                if (key.matches(vaxis.Key.down, .{})) {
+                    if (self.selected < 1) self.selected += 1;
+                    try updateFocus(self, ctx);
+                    _ = ctx.consumeAndRedraw();
+                    return;
+                }
+            },
+
+            else => {},
+        }
+    }
+
+    fn updateFocus(self: *ResultsScreen, ctx: *vxfw.EventContext) !void {
+        switch (self.selected) {
+            0 => try ctx.requestFocus(self.play_again_btn.widget()),
+            1 => try ctx.requestFocus(self.quit_btn.widget()),
+            else => {},
+        }
+    }
+
+    pub fn draw(self: *ResultsScreen, model: *Model, ctx: vxfw.DrawContext) !vxfw.Surface {
+        const size = ctx.max.size();
+        const mid = size.width / 2;
+
+        const outcome = self.game.last_outcome orelse RoundOutcome.push;
+
+        const result_text = switch (outcome) {
+            .player_blackjack => "Blackjack! You win!",
+            .dealer_blackjack => "Dealer has Blackjack. You lose.",
+            .player_win => "You win!",
+            .dealer_win => "You lose.",
+            .push => "Push.",
+        };
+
+        const title = vxfw.Text{ .text = "ROUND RESULTS" };
+        const result = vxfw.Text{ .text = result_text };
+        const player_line = vxfw.Text{
+            .text = try std.fmt.allocPrint(
+                ctx.arena,
+                "Player: {d}   Cards: {d}",
+                .{ self.game.player.hand.value(), self.game.player.hand.count },
+            ),
+        };
+        const dealer_line = vxfw.Text{
+            .text = try std.fmt.allocPrint(
+                ctx.arena,
+                "Dealer: {d}   Cards: {d}",
+                .{ self.game.dealer.hand.value(), self.game.dealer.hand.count },
+            ),
+        };
+
+        const t_surf = try title.draw(ctx);
+        const r_surf = try result.draw(ctx);
+        const p_surf = try player_line.draw(ctx);
+        const d_surf = try dealer_line.draw(ctx);
+
+        const play_surf = try self.play_again_btn.draw(ctx);
+        const quit_surf = try self.quit_btn.draw(ctx);
+
+        const row_base = size.height / 4;
+        const btn_row1 = row_base + 10;
+        const btn_row2 = btn_row1 + play_surf.size.height + 2;
+
+        const children = try ctx.arena.alloc(vxfw.SubSurface, 6);
+        children[0] = .{ .origin = .{ .row = row_base, .col = mid - (t_surf.size.width / 2) }, .surface = t_surf };
+        children[1] = .{ .origin = .{ .row = row_base + 2, .col = mid - (r_surf.size.width / 2) }, .surface = r_surf };
+        children[2] = .{ .origin = .{ .row = row_base + 4, .col = mid - (p_surf.size.width / 2) }, .surface = p_surf };
+        children[3] = .{ .origin = .{ .row = row_base + 6, .col = mid - (d_surf.size.width / 2) }, .surface = d_surf };
+        children[4] = .{ .origin = .{ .row = btn_row1, .col = mid - (play_surf.size.width / 2) }, .surface = play_surf };
+        children[5] = .{ .origin = .{ .row = btn_row2, .col = mid - (quit_surf.size.width / 2) }, .surface = quit_surf };
+
+        return .{
+            .size = size,
+            .widget = model.widget(),
+            .buffer = &.{},
+            .children = children,
+        };
+    }
+};
