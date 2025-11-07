@@ -158,6 +158,17 @@ pub const TableScreen = struct {
             .surface = dealer_surf,
         };
 
+        // Dealer points label
+        const dealer_points_text = try std.fmt.allocPrint(ctx.arena, "Dealer: {d}", .{game.dealer.value()});
+        const dealer_points_widget = vxfw.Text{ .text = dealer_points_text };
+        const dealer_points_surf = try dealer_points_widget.draw(ctx);
+        const dealer_label_row: u16 = if (dealer_y > 0) dealer_y - 1 else dealer_y;
+        const dealer_label_col: u16 = dealer_x + (dealer_surf.size.width / 2) - (dealer_points_surf.size.width / 2);
+        const dealer_label_sub = vxfw.SubSurface{
+            .origin = .{ .row = dealer_label_row, .col = dealer_label_col },
+            .surface = dealer_points_surf,
+        };
+
         // Player hand --------------------------------------------------------
         var player_hand = HandWidget.init(game.player.hand.currentCards(), false);
         const player_surf = try player_hand.widget().drawFn(&player_hand, ctx);
@@ -171,6 +182,17 @@ pub const TableScreen = struct {
         const player_sub = vxfw.SubSurface{
             .origin = .{ .row = player_y, .col = player_x },
             .surface = player_surf,
+        };
+
+        // Player points label
+        const player_points_text = try std.fmt.allocPrint(ctx.arena, "Player: {d}", .{game.player.value()});
+        const player_points_widget = vxfw.Text{ .text = player_points_text };
+        const player_points_surf = try player_points_widget.draw(ctx);
+        const player_label_row: u16 = if (player_y > 0) player_y - 1 else player_y;
+        const player_label_col: u16 = player_x + (player_surf.size.width / 2) - (player_points_surf.size.width / 2);
+        const player_label_sub = vxfw.SubSurface{
+            .origin = .{ .row = player_label_row, .col = player_label_col },
+            .surface = player_points_surf,
         };
 
         // Status widget ------------------------------------------------------
@@ -189,7 +211,8 @@ pub const TableScreen = struct {
         };
 
         // Buttons ------------------------------------------------------------
-        var count: usize = 3;
+        // children: dealer label, dealer hand, player label, player hand, status
+        var count: usize = 5;
         var hit_sub: vxfw.SubSurface = undefined;
         var stand_sub: vxfw.SubSurface = undefined;
         var double_sub: vxfw.SubSurface = undefined;
@@ -219,14 +242,17 @@ pub const TableScreen = struct {
         }
 
         const children = try ctx.arena.alloc(vxfw.SubSurface, count);
-        children[0] = dealer_sub;
-        children[1] = player_sub;
-        children[2] = status_sub;
+        children[0] = dealer_label_sub;
+        children[1] = dealer_sub;
+        children[2] = player_label_sub;
+        children[3] = player_sub;
+        children[4] = status_sub;
 
         if (game.phase == .player_turn) {
-            children[3] = hit_sub;
-            children[4] = stand_sub;
-            children[5] = double_sub;
+            // append buttons after existing children
+            children[5] = hit_sub;
+            children[6] = stand_sub;
+            children[7] = double_sub;
         }
 
         var _empty_table_cells: [0]vaxis.Cell = .{};

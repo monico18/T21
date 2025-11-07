@@ -158,4 +158,46 @@ pub const GameState = struct {
         self.last_outcome = null;
         self.phase = .betting;
     }
+
+    // Persist the player's bankroll to a small binary file. The file will
+    // contain a 32-bit little-endian signed integer representing the
+    // bankroll value.
+    pub fn saveBankroll(self: *GameState, path: []const u8) !void {
+        const file = try std.fs.cwd().createFile(path, .{ .truncate = true });
+        defer file.close();
+
+        var buf: [4]u8 = undefined;
+        const v: u32 = @as(u32, @intCast(self.player.bankroll));
+
+        // Extract bytes explicitly. Use @intCast to make the intermediate
+        // expressions compatible with the project's casting idioms.
+        buf[0] = @as(u8, @intCast(v & @as(u32, 0xFF)));
+        buf[1] = @as(u8, @intCast((v >> 8) & @as(u32, 0xFF)));
+        buf[2] = @as(u8, @intCast((v >> 16) & @as(u32, 0xFF)));
+        buf[3] = @as(u8, @intCast((v >> 24) & @as(u32, 0xFF)));
+
+        try file.writeAll(buf[0..]);
+    }
+
+    // Load bankroll from a binary file previously written by saveBankroll.
+    // If the file is missing or malformed an error will be returned.
+    pub fn loadBankroll(self: *GameState, path: []const u8) !void {
+        const file = try std.fs.cwd().openFile(path, .{});
+        defer file.close();
+
+        var buf: [4]u8 = undefined;
+        var total: usize = 0;
+        while (total < buf.len) {
+            const n = try file.read(buf[total..]);
+            if (n == 0) {
+                const Err = error{FileTooSmall};
+                return Err.FileTooSmall;
+            }
+            total += n;
+        }
+
+        const v: u32 = @as(u32, buf[0]) | (@as(u32, buf[1]) << 8) | (@as(u32, buf[2]) << 16) | (@as(u32, buf[3]) << 24);
+
+        self.player.bankroll = @intCast(v);
+    }
 };

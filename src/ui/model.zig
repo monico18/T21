@@ -38,6 +38,9 @@ pub const Model = struct {
         // Initialize game
         model.allocator = allocator;
         model.game = try GameState.init(allocator, num_decks, starting_money);
+        // Try to load a previously saved bankroll if present. Ignore errors
+        // (e.g., file not found or malformed) so the game still starts.
+        _ = model.game.loadBankroll("bankroll.bin") catch {};
         model.current_screen = .menu;
 
         // Initialize global status widget
@@ -45,9 +48,9 @@ pub const Model = struct {
 
         // Initialize screens (MUST be after model is allocated)
         model.menu_screen = menu.MenuScreen.init(model);
-    model.betting_screen = try betting.BettingScreen.init(model, &model.game);
-    // Initialize table screen (store the game pointer into the screen)
-    model.table_screen = table.TableScreen.init(&model.game);
+        model.betting_screen = try betting.BettingScreen.init(model, &model.game);
+        // Initialize table screen (store the game pointer into the screen)
+        model.table_screen = table.TableScreen.init(&model.game);
         // BettingScreen.init leaves button userdata null to avoid taking the
         // address of a stack-local value. Set userdata to point to the
         // stored betting_screen now that it's placed inside `model`.

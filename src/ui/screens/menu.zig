@@ -10,6 +10,7 @@ pub const MenuScreen = struct {
     selected: usize = 0,
 
     play_btn: ButtonWidget,
+    save_btn: ButtonWidget,
     quit_btn: ButtonWidget,
 
     pub fn init(model: *Model) MenuScreen {
@@ -19,15 +20,24 @@ pub const MenuScreen = struct {
             fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
                 const m: *Model = @ptrCast(@alignCast(userdata.?));
                 m.current_screen = .betting;
-                std.debug.print("[menu] Play callback invoked\n", .{});
+                //std.debug.print("[menu] Play callback invoked\n", .{});
                 _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // --- Save & Quit callback -------------------------------------------
+        const onSave = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const m: *Model = @ptrCast(@alignCast(userdata.?));
+                // Persist bankroll to a local file and then quit.
+                try m.game.saveBankroll("bankroll.bin");
+                ctx.quit = true;
             }
         }.cb;
 
         // --- Quit callback -------------------------------------------------
         const onQuit = struct {
             fn cb(_: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
-                std.debug.print("[menu] Quit callback invoked\n", .{});
                 ctx.quit = true;
             }
         }.cb;
@@ -35,6 +45,7 @@ pub const MenuScreen = struct {
         return MenuScreen{
             .selected = 0,
             .play_btn = .{ .label = "Play", .onClick = onPlay, .userdata = model },
+            .save_btn = .{ .label = "Save & Quit", .onClick = onSave, .userdata = model },
             .quit_btn = .{ .label = "Quit", .onClick = onQuit, .userdata = null },
         };
     }
@@ -69,7 +80,7 @@ pub const MenuScreen = struct {
 
                 // --- navigation: DOWN -----------------------------------------------
                 if (key.matches(vaxis.Key.down, .{}) and isEmpty(key.mods)) {
-                    if (self.selected < 1) self.selected += 1;
+                    if (self.selected < 2) self.selected += 1;
                     try self.updateFocus(ctx);
                     return ctx.consumeAndRedraw();
                 }
@@ -81,14 +92,9 @@ pub const MenuScreen = struct {
 
     fn updateFocus(self: *MenuScreen, ctx: *vxfw.EventContext) !void {
         switch (self.selected) {
-            0 => {
-                std.debug.print("[menu] updateFocus: requesting focus on play_btn\n", .{});
-                try ctx.requestFocus(self.play_btn.widget());
-            },
-            1 => {
-                std.debug.print("[menu] updateFocus: requesting focus on quit_btn\n", .{});
-                try ctx.requestFocus(self.quit_btn.widget());
-            },
+            0 => try ctx.requestFocus(self.play_btn.widget()),
+            1 => try ctx.requestFocus(self.save_btn.widget()),
+            2 => try ctx.requestFocus(self.quit_btn.widget()),
             else => {},
         }
     }
@@ -101,13 +107,15 @@ pub const MenuScreen = struct {
         const title_surf = try title.draw(ctx);
 
         const play_surf = try self.play_btn.draw(ctx);
+        const save_surf = try self.save_btn.draw(ctx);
         const quit_surf = try self.quit_btn.draw(ctx);
 
         const y_title = size.height / 4;
         const y_play = size.height / 2 - 1;
-        const y_quit = y_play + play_surf.size.height + 2;
+        const y_save = y_play + play_surf.size.height + 1;
+        const y_quit = y_save + save_surf.size.height + 1;
 
-        const children = try ctx.arena.alloc(vxfw.SubSurface, 3);
+        const children = try ctx.arena.alloc(vxfw.SubSurface, 4);
 
         children[0] = .{
             .origin = .{ .row = y_title, .col = mid - (title_surf.size.width / 2) },
@@ -120,10 +128,14 @@ pub const MenuScreen = struct {
         };
 
         children[2] = .{
+            .origin = .{ .row = y_save, .col = mid - (save_surf.size.width / 2) },
+            .surface = save_surf,
+        };
+
+        children[3] = .{
             .origin = .{ .row = y_quit, .col = mid - (quit_surf.size.width / 2) },
             .surface = quit_surf,
         };
-
         var _empty_menu_cells: [0]vaxis.Cell = .{};
 
         return .{
