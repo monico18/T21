@@ -23,8 +23,7 @@ jobs:
         run: |
           set -e
           Z=$ZIG_VERSION
-          ARCH= x86_64
-          TAR=zig-linux-x86_64-${Z}.tar.xz
+          TAR=zig-x86_64-linux-${Z}.tar.xz
           URL=https://ziglang.org/download/${Z}/${TAR}
           curl -fsSL -o $TAR $URL
           tar -xJf $TAR
@@ -36,8 +35,14 @@ jobs:
         run: |
           set -e
           Z=$ZIG_VERSION
-          TAR=zig-macos-x86_64-${Z}.tar.xz
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
+            TAR=zig-aarch64-macos-${Z}.tar.xz
+          else
+            TAR=zig-x86_64-macos-${Z}.tar.xz
+          fi
           URL=https://ziglang.org/download/${Z}/${TAR}
+          echo "Downloading $URL"
           curl -fsSL -o $TAR $URL
           tar -xJf $TAR
           DIR=$(tar -tf $TAR | head -1 | cut -f1 -d"/")
@@ -48,14 +53,14 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $Z = $env:GITHUB_ENV | Out-String
-          $Z = '0.15.2'
-          $zip = "zig-windows-x86_64-$Z.zip"
+          $Z = $env:ZIG_VERSION
+          $zip = "zig-x86_64-windows-$Z.zip"
           $url = "https://ziglang.org/download/$Z/$zip"
+          Write-Host "Downloading $url"
           Invoke-WebRequest -Uri $url -OutFile $zip
           Expand-Archive -Path $zip -DestinationPath .
           $dir = (Get-ChildItem -Directory | Where-Object { $_.Name -like "zig-*" } | Select-Object -First 1).FullName
-          Add-Content -Path $env:GITHUB_PATH -Value (Join-Path $PWD $dir)
+          Add-Content -Path $env:GITHUB_PATH -Value $dir
 
       - name: Print Zig version
         run: zig version
