@@ -59,6 +59,19 @@ jobs:
       - name: Build
         run: zig build
 
+      - name: Rename binary to include OS and short SHA
+        run: |
+          set -e
+          BIN=zig-out/bin/T21
+          if [ -f "$BIN" ]; then
+            SHORT_SHA=${GITHUB_SHA:0:7}
+            OUT="zig-out/bin/T21-${{ matrix.os }}-v${{ github.run_number }}-${SHORT_SHA}"
+            echo "Renaming $BIN -> $OUT"
+            mv "$BIN" "$OUT"
+          else
+            echo "Binary not found at $BIN, skipping rename"
+          fi
+
       - name: Run tests
         run: zig build test
 
@@ -68,7 +81,6 @@ jobs:
         with:
           name: T21-${{ matrix.os }}
           path: |
-            zig-out/bin/T21
             zig-out/bin/*
 
   release:
@@ -77,6 +89,14 @@ jobs:
     needs: build
     if: needs.build.result == 'success' && github.ref == 'refs/heads/master'
     steps:
+      - name: Compute release tag
+        run: |
+          set -e
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          DATE=$(date -u +%Y%m%d)
+          echo "RELEASE_TAG=v${DATE}-${{ github.run_number }}-${SHORT_SHA}" >> $GITHUB_ENV
+          echo "Computed RELEASE_TAG=$RELEASE_TAG"
+
       - name: Download all job artifacts
         uses: actions/download-artifact@v4
         with:
@@ -85,8 +105,8 @@ jobs:
       - name: Create GitHub Release and upload binaries
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ github.run_number }}
-          name: Release ${{ github.run_number }}
+          tag: ${{ env.RELEASE_TAG }}
+          name: Release ${{ env.RELEASE_TAG }}
           files: ./artifacts/**
           overwrite: true
         env:
