@@ -66,8 +66,13 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $zip
           Expand-Archive -Path $zip -DestinationPath .
           $dir = (Get-ChildItem -Directory | Where-Object { $_.Name -like "zig-*" } | Select-Object -First 1).FullName
-          $full = Join-Path $PWD $dir
+          # Ensure we have an absolute path to the extracted dir
+          $full = if ([System.IO.Path]::IsPathRooted($dir)) { $dir } else { Join-Path $PWD $dir }
+          Write-Host "Zig extracted to: $full"
+          # Add to GITHUB_PATH so subsequent steps pick it up
           Add-Content -Path $env:GITHUB_PATH -Value $full
+          # Also prepend to PATH for the current job explicitly via GITHUB_ENV (use ';' on Windows)
+          Add-Content -Path $env:GITHUB_ENV -Value ("PATH=$full;$env:PATH")
 
       - name: Print Zig version
         run: zig version
