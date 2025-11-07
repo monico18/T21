@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build & Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Zig version
+        run: echo "ZIG_VERSION=0.15.2" >> $GITHUB_ENV
+
+      - name: Download and extract Zig (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -e
+          Z=$ZIG_VERSION
+          ARCH= x86_64
+          TAR=zig-linux-x86_64-${Z}.tar.xz
+          URL=https://ziglang.org/download/${Z}/${TAR}
+          curl -fsSL -o $TAR $URL
+          tar -xJf $TAR
+          DIR=$(tar -tf $TAR | head -1 | cut -f1 -d"/")
+          echo "${PWD}/${DIR}" >> $GITHUB_PATH
+
+      - name: Download and extract Zig (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -e
+          Z=$ZIG_VERSION
+          TAR=zig-macos-x86_64-${Z}.tar.xz
+          URL=https://ziglang.org/download/${Z}/${TAR}
+          curl -fsSL -o $TAR $URL
+          tar -xJf $TAR
+          DIR=$(tar -tf $TAR | head -1 | cut -f1 -d"/")
+          echo "${PWD}/${DIR}" >> $GITHUB_PATH
+
+      - name: Download and extract Zig (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $Z = $env:GITHUB_ENV | Out-String
+          $Z = '0.15.2'
+          $zip = "zig-windows-x86_64-$Z.zip"
+          $url = "https://ziglang.org/download/$Z/$zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath .
+          $dir = (Get-ChildItem -Directory | Where-Object { $_.Name -like "zig-*" } | Select-Object -First 1).FullName
+          Add-Content -Path $env:GITHUB_PATH -Value (Join-Path $PWD $dir)
+
+      - name: Print Zig version
+        run: zig version
+
+      - name: Build
+        run: zig build
+
+      - name: Run tests
+        run: zig test src/game
+
+      - name: Upload built binary
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: T21-${{ matrix.os }}
+          path: |
+            zig-out/bin/T21
+            zig-out/bin/*
