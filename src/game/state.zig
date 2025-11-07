@@ -205,8 +205,18 @@ pub const GameState = struct {
     /// Save to the user's home config location (~/.t21/bankroll.bin) if
     /// possible, otherwise fall back to the current working directory.
     pub fn saveBankrollDefault(self: *GameState) !void {
-        // Attempt to save into a local .t21 file in cwd; if that fails,
-        // fall back to a simple bankroll.bin in cwd.
+        // Attempt to create a local config directory and save there; if that
+        // fails, fall back to a simple bankroll.bin in cwd. Use comptime
+        // checks to call whichever API is available in this Zig stdlib.
+        comptime {
+            if (@hasDecl(std.fs.Dir, "createDir")) {
+                _ = std.fs.cwd().createDir(".t21", .{}) catch {};
+            } else if (@hasDecl(std.os, "mkdir")) {
+                _ = std.os.mkdir(".t21", 0o700) catch {};
+            } else {
+                // no reliable mkdir API available in this stdlib version; skip
+            }
+        }
         self.saveBankroll(".t21/bankroll.bin") catch {
             try self.saveBankroll("bankroll.bin");
         };
