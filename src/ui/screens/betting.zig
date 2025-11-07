@@ -3,6 +3,7 @@ const vaxis = @import("vaxis");
 const vxfw = vaxis.vxfw;
 
 const Model = @import("../model.zig").Model;
+const ui_style = @import("../style.zig");
 const GameState = @import("../../game/state.zig").GameState;
 const ButtonWidget = @import("../widgets/button_widget.zig").ButtonWidget;
 
@@ -194,21 +195,23 @@ pub const BettingScreen = struct {
         // Create screen struct
         // Return a BettingScreen with button userdata left null. Caller must
         // set the userdata pointers after storing the returned value.
+        // Chip colors for denominations. Create reusable style constants
+        // first to keep the initializer readable.
         return BettingScreen{
             .game = game,
             .model = model,
             .bet = 10,
 
-            .plus_btn = .{ .label = "+", .onClick = onPlus, .userdata = null, .borderless = true },
-            .plus25_btn = .{ .label = "+", .onClick = onPlus25, .userdata = null, .borderless = true },
-            .plus10_btn = .{ .label = "+", .onClick = onPlus10, .userdata = null, .borderless = true },
-            .plus50_btn = .{ .label = "+", .onClick = onPlus50, .userdata = null, .borderless = true },
-            .plus100_btn = .{ .label = "+", .onClick = onPlus100, .userdata = null, .borderless = true },
-            .minus_btn = .{ .label = "-", .onClick = onMinus, .userdata = null, .borderless = true },
-            .minus25_btn = .{ .label = "-", .onClick = onMinus25, .userdata = null, .borderless = true },
-            .minus10_btn = .{ .label = "-", .onClick = onMinus10, .userdata = null, .borderless = true },
-            .minus50_btn = .{ .label = "-", .onClick = onMinus50, .userdata = null, .borderless = true },
-            .minus100_btn = .{ .label = "-", .onClick = onMinus100, .userdata = null, .borderless = true },
+            .plus_btn = .{ .label = "+", .onClick = onPlus, .userdata = null, .borderless = true, .style = ui_style.chip_white, .focused_style = ui_style.chip_white_focus },
+            .plus25_btn = .{ .label = "+", .onClick = onPlus25, .userdata = null, .borderless = true, .style = ui_style.chip_red, .focused_style = ui_style.chip_red_focus },
+            .plus10_btn = .{ .label = "+", .onClick = onPlus10, .userdata = null, .borderless = true, .style = ui_style.chip_blue, .focused_style = ui_style.chip_blue_focus },
+            .plus50_btn = .{ .label = "+", .onClick = onPlus50, .userdata = null, .borderless = true, .style = ui_style.chip_green, .focused_style = ui_style.chip_green_focus },
+            .plus100_btn = .{ .label = "+", .onClick = onPlus100, .userdata = null, .borderless = true, .style = ui_style.chip_gold, .focused_style = ui_style.chip_gold_focus },
+            .minus_btn = .{ .label = "-", .onClick = onMinus, .userdata = null, .borderless = true, .style = ui_style.chip_white, .focused_style = ui_style.chip_white_focus },
+            .minus25_btn = .{ .label = "-", .onClick = onMinus25, .userdata = null, .borderless = true, .style = ui_style.chip_red, .focused_style = ui_style.chip_red_focus },
+            .minus10_btn = .{ .label = "-", .onClick = onMinus10, .userdata = null, .borderless = true, .style = ui_style.chip_blue, .focused_style = ui_style.chip_blue_focus },
+            .minus50_btn = .{ .label = "-", .onClick = onMinus50, .userdata = null, .borderless = true, .style = ui_style.chip_green, .focused_style = ui_style.chip_green_focus },
+            .minus100_btn = .{ .label = "-", .onClick = onMinus100, .userdata = null, .borderless = true, .style = ui_style.chip_gold, .focused_style = ui_style.chip_gold_focus },
             .all_in_btn = .{ .label = "All In", .onClick = onAllIn, .userdata = null },
             .clear_btn = .{ .label = "Clear", .onClick = onClear, .userdata = null },
             .confirm_btn = .{ .label = "Confirm", .onClick = onConfirm, .userdata = null },
@@ -264,61 +267,26 @@ pub const BettingScreen = struct {
 
     fn updateFocus(self: *BettingScreen, ctx: *vxfw.EventContext) !void {
         switch (self.selected) {
-            0 => {
-                std.debug.print("[betting] updateFocus: requesting focus on plus_btn\n", .{});
-                try ctx.requestFocus(self.plus_btn.widget());
-            },
-            1 => {
-                std.debug.print("[betting] updateFocus: requesting focus on plus25_btn\n", .{});
-                try ctx.requestFocus(self.plus25_btn.widget());
-            },
-            2 => {
-                std.debug.print("[betting] updateFocus: requesting focus on plus50_btn\n", .{});
-                try ctx.requestFocus(self.plus50_btn.widget());
-            },
-            3 => {
-                std.debug.print("[betting] updateFocus: requesting focus on plus100_btn\n", .{});
-                try ctx.requestFocus(self.plus100_btn.widget());
-            },
-            4 => {
-                std.debug.print("[betting] updateFocus: requesting focus on minus_btn\n", .{});
-                try ctx.requestFocus(self.minus_btn.widget());
-            },
-            5 => {
-                std.debug.print("[betting] updateFocus: requesting focus on minus25_btn\n", .{});
-                try ctx.requestFocus(self.minus25_btn.widget());
-            },
-            6 => {
-                std.debug.print("[betting] updateFocus: requesting focus on minus50_btn\n", .{});
-                try ctx.requestFocus(self.minus50_btn.widget());
-            },
-            7 => {
-                std.debug.print("[betting] updateFocus: requesting focus on minus100_btn\n", .{});
-                try ctx.requestFocus(self.minus100_btn.widget());
-            },
-            8 => {
-                std.debug.print("[betting] updateFocus: requesting focus on all_in_btn\n", .{});
-                try ctx.requestFocus(self.all_in_btn.widget());
-            },
-            9 => {
-                std.debug.print("[betting] updateFocus: requesting focus on clear_btn\n", .{});
-                try ctx.requestFocus(self.clear_btn.widget());
-            },
+            0 => try ctx.requestFocus(self.plus_btn.widget()),
+            1 => try ctx.requestFocus(self.plus25_btn.widget()),
+            2 => try ctx.requestFocus(self.plus50_btn.widget()),
+            3 => try ctx.requestFocus(self.plus100_btn.widget()),
+            4 => try ctx.requestFocus(self.minus_btn.widget()),
+            5 => try ctx.requestFocus(self.minus25_btn.widget()),
+            6 => try ctx.requestFocus(self.minus50_btn.widget()),
+            7 => try ctx.requestFocus(self.minus100_btn.widget()),
+            8 => try ctx.requestFocus(self.all_in_btn.widget()),
+            9 => try ctx.requestFocus(self.clear_btn.widget()),
             10 => {
                 // Confirm: only focusable if bet > 0
                 if (self.bet > 0) {
-                    std.debug.print("[betting] updateFocus: requesting focus on confirm_btn\n", .{});
                     try ctx.requestFocus(self.confirm_btn.widget());
                 } else {
                     // skip to back if confirm should be disabled
-                    std.debug.print("[betting] updateFocus: confirm disabled, focusing back_btn\n", .{});
                     try ctx.requestFocus(self.back_btn.widget());
                 }
             },
-            11 => {
-                std.debug.print("[betting] updateFocus: requesting focus on back_btn\n", .{});
-                try ctx.requestFocus(self.back_btn.widget());
-            },
+            11 => try ctx.requestFocus(self.back_btn.widget()),
             else => {},
         }
     }
@@ -361,11 +329,11 @@ pub const BettingScreen = struct {
         const val50_text = try std.fmt.allocPrint(ctx.arena, "50", .{});
         const val100_text = try std.fmt.allocPrint(ctx.arena, "100", .{});
 
-        const val1_surf = try (vxfw.Text{ .text = val1_text }).draw(ctx);
-        const val10_surf = try (vxfw.Text{ .text = val10_text }).draw(ctx);
-        const val25_surf = try (vxfw.Text{ .text = val25_text }).draw(ctx);
-        const val50_surf = try (vxfw.Text{ .text = val50_text }).draw(ctx);
-        const val100_surf = try (vxfw.Text{ .text = val100_text }).draw(ctx);
+        const val1_surf = try (vxfw.Text{ .text = val1_text, .style = ui_style.chip_white }).draw(ctx);
+        const val10_surf = try (vxfw.Text{ .text = val10_text, .style = ui_style.chip_blue }).draw(ctx);
+        const val25_surf = try (vxfw.Text{ .text = val25_text, .style = ui_style.chip_red }).draw(ctx);
+        const val50_surf = try (vxfw.Text{ .text = val50_text, .style = ui_style.chip_green }).draw(ctx);
+        const val100_surf = try (vxfw.Text{ .text = val100_text, .style = ui_style.chip_gold }).draw(ctx);
 
         const g0_top = plus_surf;
         const g0_mid = val1_surf;
@@ -490,11 +458,7 @@ pub const BettingScreen = struct {
         children[out_child_idx] = .{ .origin = .{ .row = @intCast(bot_row + 8 + confirm_surf.size.height + 2), .col = center_col(mid, @intCast(back_surf.size.width)) }, .surface = back_surf };
 
         // Debug and clamp
-        for (children) |c| {
-            if (c.origin.row > size.height or c.origin.col > size.width) {
-                std.debug.print("[betting] child origin out-of-bounds: row={d} col={d} surface={d}x{d} size={d}x{d}\n", .{ c.origin.row, c.origin.col, c.surface.size.width, c.surface.size.height, size.width, size.height });
-            }
-        }
+        // debug messages removed
 
         const max_row: u16 = if (size.height > 0) size.height - 1 else 0;
         const max_col: u16 = if (size.width > 0) size.width - 1 else 0;

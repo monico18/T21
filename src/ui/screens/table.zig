@@ -130,18 +130,9 @@ pub const TableScreen = struct {
 
     fn updateFocus(self: *TableScreen, ctx: *vxfw.EventContext) !void {
         switch (self.selected) {
-            0 => {
-                std.debug.print("[table] updateFocus: requesting focus on hit_btn\n", .{});
-                try ctx.requestFocus(self.hit_btn.widget());
-            },
-            1 => {
-                std.debug.print("[table] updateFocus: requesting focus on stand_btn\n", .{});
-                try ctx.requestFocus(self.stand_btn.widget());
-            },
-            2 => {
-                std.debug.print("[table] updateFocus: requesting focus on double_btn\n", .{});
-                try ctx.requestFocus(self.double_btn.widget());
-            },
+            0 => try ctx.requestFocus(self.hit_btn.widget()),
+            1 => try ctx.requestFocus(self.stand_btn.widget()),
+            2 => try ctx.requestFocus(self.double_btn.widget()),
             else => {},
         }
     }
@@ -292,11 +283,7 @@ pub const TableScreen = struct {
         }
 
         // Debug: report any out-of-bounds child origins before clamping.
-        for (children) |c| {
-            if (c.origin.row > size.height or c.origin.col > size.width) {
-                std.debug.print("[table] child origin out-of-bounds: row={d} col={d} surface={d}x{d} size={d}x{d}\n", .{ c.origin.row, c.origin.col, c.surface.size.width, c.surface.size.height, size.width, size.height });
-            }
-        }
+        // debug messages removed
 
         // Clamp children origins to avoid unsigned underflow in vaxis
         const max_row: u16 = if (size.height > 0) size.height - 1 else 0;

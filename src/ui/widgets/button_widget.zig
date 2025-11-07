@@ -13,6 +13,24 @@ pub const ButtonWidget = struct {
     // surrounding box. This is useful when the caller wants to compose
     // a custom surrounding frame and keep the button interactive.
     borderless: bool = false,
+    // Optional style applied to all cells in the button. Allows callers to
+    // color the button background/foreground (e.g., emulate casino chips).
+    style: vaxis.Style = .{},
+    // Optional style applied when the widget is focused/hovered. Fields set
+    // here will override the base `style` when focused. Provide a
+    // reasonable default so all buttons gain a visible highlight without
+    // requiring callers to wire focused_style manually.
+    focused_style: vaxis.Style = vaxis.Style{ .reverse = true, .bold = true },
+
+    // Internal: whether the widget is currently focused/hovered. Updated
+    // via focus_in/focus_out and mouse_enter/mouse_leave events so the
+    // draw function can show a hover/focus state.
+    focused: bool = false,
+    // Internal: whether the widget is being 'entered' via keyboard (Enter
+    // key). When true the draw function will show a checkered activation
+    // background. This is intentionally separate from `focused` so we can
+    // show a transient pressed/entered visual without changing focus.
+    entered: bool = false,
 
     pub fn draw(self: *ButtonWidget, ctx: vxfw.DrawContext) !vxfw.Surface {
         return onDraw(self, ctx);
@@ -45,9 +63,47 @@ pub const ButtonWidget = struct {
                     return self.onClick(self.userdata, ctx);
                 }
             },
+            // Track focus and hover so draw() can show a highlighted state
             .focus_in => {
-                // when focused, we don't activate on Enter; keep focus behavior only
+                self.focused = true;
                 return;
+            },
+            .focus_out => {
+                self.focused = false;
+                // clear any transient entered state when focus is lost
+                self.entered = false;
+                return;
+            },
+            .mouse_enter => {
+                // Only set the widget-local focused flag on mouse enter.
+                // Requesting framework focus here can trigger internal
+                // assertions when the widget isn't yet present in the
+                // current widget tree; we intentionally avoid calling
+                // ctx.requestFocus from within transient mouse events to
+                // prevent those cases. A redraw is requested so the
+                // hover highlight appears.
+                self.focused = true;
+                _ = ctx.consumeAndRedraw();
+                return;
+            },
+            .mouse_leave => {
+                self.focused = false;
+                // clear transient entered state when mouse leaves
+                self.entered = false;
+                return;
+            },
+            // Allow the Enter/Return key to produce a transient "entered"
+            // visual (checkered background). We do NOT trigger the click
+            // callback on Enter here: the project prefers mouse-only
+            // activation, but exposing a keyboard visual helps accessibility.
+            .key_press => |key| {
+                // Accept both explicit Enter keys and CR/LF characters
+                if (key.matches(vaxis.Key.enter, .{}) or key.matches('\r', .{}) or key.matches('\n', .{})) {
+                    self.entered = true;
+                    // Request a redraw so the checkered background appears
+                    _ = ctx.consumeAndRedraw();
+                    return;
+                }
             },
             else => {},
         }
@@ -66,11 +122,55 @@ pub const ButtonWidget = struct {
 
         // fill background. when disabled render with a dotted filler to give
         // a visual cue the button is inactive. When borderless, do not draw
-        // the surrounding box.
-        const fill = if (self.enabled) " " else "·";
-        for (buffer) |*c| {
-            c.char = .{ .grapheme = fill, .width = 1 };
-            c.style = .{};
+        // the surrounding box. Apply the widget's style to every cell so
+        // callers can color buttons (chip colors).
+        // If the widget is in the transient `entered` state (Enter key),
+        // draw a simple checkered background by alternating glyphs per
+        // cell; this gives a clear visual cue the button was "entered".
+        var idx: usize = 0;
+        const total = usize_w * usize_h;
+        while (idx < total) : (idx += 1) {
+            const row = @as(usize, idx) / usize_w;
+            const col = @as(usize, idx) % usize_w;
+            var glyph: []const u8 = " ";
+            if (!self.enabled) {
+                glyph = "·";
+            } else {
+                if (self.entered) {
+                    // simple checkered pattern using a light block glyph
+                    if ((row + col) % 2 == 0) {
+                        glyph = "░";
+                    } else {
+                        glyph = " ";
+                    }
+                }
+            }
+            const c = &buffer[idx];
+            c.char = .{ .grapheme = glyph, .width = 1 };
+            // start with base style
+            c.style = self.style;
+            // indicate disabled visually by dimming
+            if (!self.enabled) c.style.dim = true;
+
+            // when focused/hovered, merge in focused_style: override colors
+            // and set any explicit emphasis flags the caller provided.
+            if (self.focused) {
+                // override colors if the focused style specifies them
+                if (self.focused_style.fg != .default) c.style.fg = self.focused_style.fg;
+                if (self.focused_style.bg != .default) c.style.bg = self.focused_style.bg;
+                if (self.focused_style.ul != .default) c.style.ul = self.focused_style.ul;
+                if (self.focused_style.ul_style != .off) c.style.ul_style = self.focused_style.ul_style;
+
+                // boolean emphasis flags: only enable if focused_style sets them true
+                if (self.focused_style.bold) c.style.bold = true;
+                if (self.focused_style.dim) c.style.dim = true;
+                if (self.focused_style.italic) c.style.italic = true;
+                if (self.focused_style.blink) c.style.blink = true;
+                if (self.focused_style.reverse) c.style.reverse = true;
+                if (self.focused_style.invisible) c.style.invisible = true;
+                if (self.focused_style.strikethrough) c.style.strikethrough = true;
+            }
+
             c.link = .{};
             c.image = null;
             c.default = false;

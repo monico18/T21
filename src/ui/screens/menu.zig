@@ -148,11 +148,7 @@ pub const MenuScreen = struct {
         children[4] = .{ .origin = .{ .row = y_quit, .col = center_col(mid, @as(u16, quit_surf.size.width)) }, .surface = quit_surf };
 
         // Debug print any out-of-bounds origins before clamping.
-        for (children) |c| {
-            if (c.origin.row > size.height or c.origin.col > size.width) {
-                std.debug.print("[menu] child origin out-of-bounds: row={d} col={d} surface={d}x{d} size={d}x{d}\n", .{ c.origin.row, c.origin.col, c.surface.size.width, c.surface.size.height, size.width, size.height });
-            }
-        }
+        // debug messages removed
 
         // Clamp origins to avoid unsigned underflow when vaxis computes
         // child regions.

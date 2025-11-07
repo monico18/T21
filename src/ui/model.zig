@@ -84,9 +84,8 @@ pub const Model = struct {
         // ResultsScreen.init leaves play_again_btn.userdata null to avoid
         // taking the address of a stack-local value. Now that the
         // ResultsScreen is stored in `model`, point the button userdata to it.
-    model.results_screen.play_again_btn.userdata = &model.results_screen;
-    model.results_screen.save_btn.userdata = &model.results_screen;
-    model.results_screen.back_btn.userdata = &model.results_screen;
+        model.results_screen.play_again_btn.userdata = &model.results_screen;
+        model.results_screen.save_btn.userdata = &model.results_screen;
 
         return model;
     }

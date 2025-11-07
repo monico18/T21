@@ -73,13 +73,20 @@ pub const CardWidget = struct {
         const rank = self.card.rank.label();
         const suit = self.card.suit.symbol();
 
-        // top-left rank and suit (no color for now)
-        children[4] = try makeTextSub(ctx, 1, 1, rank, .{});
-        children[5] = try makeTextSub(ctx, 2, 1, suit, .{});
+        // Choose a style for red suits (hearts, diamonds). If the suit is
+        // red, use a red foreground; otherwise use the default style.
+        const suit_style = if (self.card.suit.isRed())
+            vaxis.Style{ .fg = vaxis.Color{ .rgb = [3]u8{ 0xFF, 0x00, 0x00 } } }
+        else
+            vaxis.Style{};
 
-        // center suit
+        // top-left rank and suit (rank in default, suit colored for red suits)
+        children[4] = try makeTextSub(ctx, 1, 1, rank, .{});
+        children[5] = try makeTextSub(ctx, 2, 1, suit, suit_style);
+
+        // center suit (colored if red)
         const center_col: usize = (width / 2) - 1;
-        children[6] = try makeTextSub(ctx, height / 2, center_col, suit, .{});
+        children[6] = try makeTextSub(ctx, height / 2, center_col, suit, suit_style);
 
         // This widget is created on the stack for drawing only. Returning
         // a widget that contains a userdata pointer to the stack-local

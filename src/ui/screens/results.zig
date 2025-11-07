@@ -19,7 +19,6 @@ pub const ResultsScreen = struct {
     game: *GameState,
     play_again_btn: ButtonWidget,
     save_btn: ButtonWidget,
-    back_btn: ButtonWidget,
     quit_btn: ButtonWidget,
     selected: usize = 0,
 
@@ -50,16 +49,7 @@ pub const ResultsScreen = struct {
             }
         }.cb;
 
-        // --------------------- BACK --------------------
-        const onBack = struct {
-            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
-                const self: *ResultsScreen = @ptrCast(@alignCast(userdata.?));
-                // model stored in quit_btn.userdata
-                const model_ptr: *Model = @ptrCast(@alignCast(self.quit_btn.userdata.?));
-                model_ptr.current_screen = .menu;
-                _ = ctx.consumeAndRedraw();
-            }
-        }.cb;
+        // (Back button removed per request)
 
         // --------------------- QUIT --------------------
         const onQuit = struct {
@@ -76,7 +66,6 @@ pub const ResultsScreen = struct {
             .game = game,
             .play_again_btn = .{ .label = "Play Again", .onClick = onPlayAgain, .userdata = null },
             .save_btn = .{ .label = "Save", .onClick = onSave, .userdata = null },
-            .back_btn = .{ .label = "Back", .onClick = onBack, .userdata = null },
             .quit_btn = .{ .label = "Quit", .onClick = onQuit, .userdata = model },
             .selected = 0,
         };
@@ -109,7 +98,7 @@ pub const ResultsScreen = struct {
                 }
 
                 if (key.matches(vaxis.Key.down, .{})) {
-                    if (self.selected < 3) self.selected += 1;
+                    if (self.selected < 2) self.selected += 1;
                     try updateFocus(self, ctx);
                     _ = ctx.consumeAndRedraw();
                     return;
@@ -124,8 +113,7 @@ pub const ResultsScreen = struct {
         switch (self.selected) {
             0 => try ctx.requestFocus(self.play_again_btn.widget()),
             1 => try ctx.requestFocus(self.save_btn.widget()),
-            2 => try ctx.requestFocus(self.back_btn.widget()),
-            3 => try ctx.requestFocus(self.quit_btn.widget()),
+            2 => try ctx.requestFocus(self.quit_btn.widget()),
             else => {},
         }
     }
@@ -168,7 +156,6 @@ pub const ResultsScreen = struct {
 
         const play_surf = try self.play_again_btn.draw(ctx);
         const save_surf = try self.save_btn.draw(ctx);
-        const back_surf = try self.back_btn.draw(ctx);
         const quit_surf = try self.quit_btn.draw(ctx);
 
         const row_base = size.height / 4;
@@ -176,22 +163,16 @@ pub const ResultsScreen = struct {
         const btn_row2 = btn_row1 + play_surf.size.height + 2;
         const btn_row3 = btn_row2 + save_surf.size.height + 2;
 
-        const children = try ctx.arena.alloc(vxfw.SubSurface, 8);
+        const children = try ctx.arena.alloc(vxfw.SubSurface, 7);
         children[0] = .{ .origin = .{ .row = row_base, .col = center_col(mid, @as(u16, t_surf.size.width)) }, .surface = t_surf };
         children[1] = .{ .origin = .{ .row = row_base + 2, .col = center_col(mid, @as(u16, r_surf.size.width)) }, .surface = r_surf };
         children[2] = .{ .origin = .{ .row = row_base + 4, .col = center_col(mid, @as(u16, p_surf.size.width)) }, .surface = p_surf };
         children[3] = .{ .origin = .{ .row = row_base + 6, .col = center_col(mid, @as(u16, d_surf.size.width)) }, .surface = d_surf };
         children[4] = .{ .origin = .{ .row = btn_row1, .col = center_col(mid, @as(u16, play_surf.size.width)) }, .surface = play_surf };
         children[5] = .{ .origin = .{ .row = btn_row2, .col = center_col(mid, @as(u16, save_surf.size.width)) }, .surface = save_surf };
-        children[6] = .{ .origin = .{ .row = btn_row3, .col = center_col(mid, @as(u16, back_surf.size.width)) }, .surface = back_surf };
-        children[7] = .{ .origin = .{ .row = btn_row3 + back_surf.size.height + 2, .col = center_col(mid, @as(u16, quit_surf.size.width)) }, .surface = quit_surf };
+        children[6] = .{ .origin = .{ .row = btn_row3, .col = center_col(mid, @as(u16, quit_surf.size.width)) }, .surface = quit_surf };
 
-        // Debug: report any out-of-bounds child origins before clamping.
-        for (children) |c| {
-            if (c.origin.row > size.height or c.origin.col > size.width) {
-                std.debug.print("[results] child origin out-of-bounds: row={d} col={d} surface={d}x{d} size={d}x{d}\n", .{ c.origin.row, c.origin.col, c.surface.size.width, c.surface.size.height, size.width, size.height });
-            }
-        }
+        // debug messages removed
 
         // Clamp child origins to the surface to prevent unsigned underflow
         // when vaxis computes child regions.
