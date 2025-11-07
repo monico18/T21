@@ -23,7 +23,7 @@ Build
 -----
 From the repository root:
 
-```fish
+```bash
 # Build in debug mode (default)
 zig build
 ```
@@ -32,7 +32,7 @@ Run
 ---
 After building the executable is placed in `zig-out/bin/T21`:
 
-```fish
+```bash
 ./zig-out/bin/T21
 ```
 
@@ -43,6 +43,7 @@ Controls
   - h — Hit
   - s — Stand
   - d — Double
+  - t — Split
   - 1 / 2 — Quick-select active hand when split
   - q or Ctrl+C — Quit
 - When betting: use the betting screen UI to increase/decrease and place bets.
