@@ -85,7 +85,11 @@ pub const BettingScreen = struct {
 
     pub fn handleEvent(self: *BettingScreen, _: *Model, ctx: *vxfw.EventContext, event: vxfw.Event) !void {
         switch (event) {
-            .init => try ctx.requestFocus(self.plus_btn.widget()),
+            .init => {
+                // See note in menu.init: avoid requesting focus here to
+                // prevent focus-path assertion if the widget tree isn't
+                // available yet.
+            },
 
             .key_press => |key| {
                 if (key.matches('q', .{}) or key.matches('c', .{ .ctrl = true })) {
@@ -125,10 +129,22 @@ pub const BettingScreen = struct {
 
     fn updateFocus(self: *BettingScreen, ctx: *vxfw.EventContext) !void {
         switch (self.selected) {
-            0 => try ctx.requestFocus(self.plus_btn.widget()),
-            1 => try ctx.requestFocus(self.minus_btn.widget()),
-            2 => try ctx.requestFocus(self.confirm_btn.widget()),
-            3 => try ctx.requestFocus(self.back_btn.widget()),
+            0 => {
+                std.debug.print("[betting] updateFocus: requesting focus on plus_btn\n", .{});
+                try ctx.requestFocus(self.plus_btn.widget());
+            },
+            1 => {
+                std.debug.print("[betting] updateFocus: requesting focus on minus_btn\n", .{});
+                try ctx.requestFocus(self.minus_btn.widget());
+            },
+            2 => {
+                std.debug.print("[betting] updateFocus: requesting focus on confirm_btn\n", .{});
+                try ctx.requestFocus(self.confirm_btn.widget());
+            },
+            3 => {
+                std.debug.print("[betting] updateFocus: requesting focus on back_btn\n", .{});
+                try ctx.requestFocus(self.back_btn.widget());
+            },
             else => {},
         }
     }
@@ -171,10 +187,12 @@ pub const BettingScreen = struct {
         children[5] = .{ .origin = .{ .row = row2, .col = mid - (confirm_surf.size.width / 2) }, .surface = confirm_surf };
         children[6] = .{ .origin = .{ .row = row3, .col = mid - (back_surf.size.width / 2) }, .surface = back_surf };
 
+        var _empty_betting_cells: [0]vaxis.Cell = .{};
+
         return .{
             .size = size,
             .widget = model.widget(),
-            .buffer = &.{},
+            .buffer = &_empty_betting_cells,
             .children = children,
         };
     }

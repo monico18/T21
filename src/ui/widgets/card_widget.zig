@@ -53,8 +53,12 @@ pub const CardWidget = struct {
 
             return .{
                 .size = .{ .width = @intCast(width), .height = @intCast(height) },
-                .widget = self.widget(),
-                .buffer = &.{},
+                .widget = .{
+                    .userdata = @ptrCast(&nonInteractiveSentinel),
+                    .eventHandler = null,
+                    .drawFn = nonInteractiveCardDraw,
+                },
+                .buffer = &_empty_card_cells,
                 .children = children,
             };
         }
@@ -77,14 +81,48 @@ pub const CardWidget = struct {
         const center_col: usize = (width / 2) - 1;
         children[6] = try makeTextSub(ctx, height / 2, center_col, suit, .{});
 
+        // This widget is created on the stack for drawing only. Returning
+        // a widget that contains a userdata pointer to the stack-local
+        // CardWidget would leave stale pointers in the surface and can
+        // cause event-path/focus handling to crash. Use an empty
+        // (non-interactive) widget here so the returned surface is
+        // draw-only.
         return .{
             .size = .{ .width = @intCast(width), .height = @intCast(height) },
-            .widget = self.widget(),
-            .buffer = &.{},
+            .widget = .{
+                .userdata = @ptrCast(&nonInteractiveSentinel),
+                .eventHandler = null,
+                .drawFn = nonInteractiveCardDraw,
+            },
+            .buffer = &_empty_card_cells,
             .children = children,
         };
     }
 };
+
+// Stable sentinel used as userdata for non-interactive temporary widgets.
+var nonInteractiveSentinel: u8 = 0;
+var _empty_card_cells: [0]vaxis.Cell = .{};
+var _empty_card_children: [0]vxfw.SubSurface = .{};
+
+fn nonInteractiveCardDraw(ptr: *anyopaque, ctx: vxfw.DrawContext) error{OutOfMemory}!vxfw.Surface {
+    // silence unused-parameters
+    _ = ptr;
+    _ = ctx;
+    // Return an empty non-interactive surface. The widget field points to
+    // a stable sentinel and uses this same draw function so drawFn is
+    // non-null.
+    return .{
+        .size = .{ .width = 0, .height = 0 },
+        .widget = .{
+            .userdata = @ptrCast(&nonInteractiveSentinel),
+            .eventHandler = null,
+            .drawFn = nonInteractiveCardDraw,
+        },
+        .buffer = &_empty_card_cells,
+        .children = &_empty_card_children,
+    };
+}
 
 //
 // Helpers

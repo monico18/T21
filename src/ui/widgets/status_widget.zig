@@ -46,10 +46,12 @@ pub const StatusWidget = struct {
             .surface = text_surface,
         };
 
+        var _empty_status_cells: [0]vaxis.Cell = .{};
+
         return .{
             .size = size,
             .widget = self.widget(),
-            .buffer = &.{}, // always empty for custom widgets in 0.5.x
+            .buffer = &_empty_status_cells, // always empty for custom widgets in 0.5.x
             .children = children,
         };
     }

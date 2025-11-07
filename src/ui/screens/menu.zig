@@ -46,7 +46,12 @@ pub const MenuScreen = struct {
         event: vxfw.Event,
     ) !void {
         switch (event) {
-            .init => try ctx.requestFocus(self.play_btn.widget()),
+            .init => {
+                // Intentionally not requesting focus here to avoid focus-path
+                // assertion in vxfw when the widget tree isn't fully installed
+                // yet. Focus will be set by user navigation or explicit
+                // updateFocus calls.
+            },
 
             .key_press => |key| {
                 // quit keys
@@ -76,8 +81,14 @@ pub const MenuScreen = struct {
 
     fn updateFocus(self: *MenuScreen, ctx: *vxfw.EventContext) !void {
         switch (self.selected) {
-            0 => try ctx.requestFocus(self.play_btn.widget()),
-            1 => try ctx.requestFocus(self.quit_btn.widget()),
+            0 => {
+                std.debug.print("[menu] updateFocus: requesting focus on play_btn\n", .{});
+                try ctx.requestFocus(self.play_btn.widget());
+            },
+            1 => {
+                std.debug.print("[menu] updateFocus: requesting focus on quit_btn\n", .{});
+                try ctx.requestFocus(self.quit_btn.widget());
+            },
             else => {},
         }
     }
@@ -113,10 +124,12 @@ pub const MenuScreen = struct {
             .surface = quit_surf,
         };
 
+        var _empty_menu_cells: [0]vaxis.Cell = .{};
+
         return .{
             .size = size,
             .widget = model.widget(),
-            .buffer = &.{},
+            .buffer = &_empty_menu_cells,
             .children = children,
         };
     }

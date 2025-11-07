@@ -41,12 +41,16 @@ pub const HandWidget = struct {
 
         const count = self.cards.len;
         if (count == 0) {
-            // empty surface
+            // empty surface (non-interactive)
             return .{
                 .size = .{ .width = 0, .height = 0 },
-                .widget = self.widget(),
-                .buffer = &.{},
-                .children = &.{},
+                .widget = .{
+                    .userdata = @ptrCast(&nonInteractiveSentinel_hand),
+                    .eventHandler = null,
+                    .drawFn = nonInteractiveHandDraw,
+                },
+                .buffer = &_empty_hand_cells,
+                .children = &_empty_hand_children,
             };
         }
 
@@ -76,11 +80,41 @@ pub const HandWidget = struct {
                 max_height = card_surf.size.height;
         }
 
+        // The HandWidget is often created as a temporary on the stack in
+        // parent draw functions. Returning a surface whose `.widget` field
+        // points at this stack-local HandWidget would produce stale
+        // userdata once the draw function returns, which can later break
+        // event dispatch/focus path calculations. Make the hand surface
+        // non-interactive by returning an empty widget here.
         return .{
             .size = .{ .width = @intCast(total_width), .height = @intCast(max_height) },
-            .widget = self.widget(),
-            .buffer = &.{}, // no root buffer in 0.5.x custom widgets
+            .widget = .{
+                .userdata = @ptrCast(&nonInteractiveSentinel_hand),
+                .eventHandler = null,
+                .drawFn = nonInteractiveHandDraw,
+            },
+            .buffer = &_empty_hand_cells, // no root buffer in 0.5.x custom widgets
             .children = children,
         };
     }
 };
+
+// Stable sentinel used as userdata for non-interactive temporary widgets.
+var nonInteractiveSentinel_hand: u8 = 0;
+var _empty_hand_cells: [0]vaxis.Cell = .{};
+var _empty_hand_children: [0]vxfw.SubSurface = .{};
+
+fn nonInteractiveHandDraw(ptr: *anyopaque, ctx: vxfw.DrawContext) error{OutOfMemory}!vxfw.Surface {
+    _ = ptr;
+    _ = ctx;
+    return .{
+        .size = .{ .width = 0, .height = 0 },
+        .widget = .{
+            .userdata = @ptrCast(&nonInteractiveSentinel_hand),
+            .eventHandler = null,
+            .drawFn = nonInteractiveHandDraw,
+        },
+        .buffer = &_empty_hand_cells,
+        .children = &_empty_hand_children,
+    };
+}

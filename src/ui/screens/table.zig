@@ -63,7 +63,12 @@ pub const TableScreen = struct {
         event: vxfw.Event,
     ) !void {
         switch (event) {
-            .init => try ctx.requestFocus(self.hit_btn.widget()),
+            .init => {
+                // Do not request focus here; requesting focus during init can
+                // cause vxfw to assert if the requested widget is not yet
+                // present in the drawn widget tree. Navigation will set
+                // focus when appropriate.
+            },
 
             .key_press => |key| {
                 const phase = self.game.phase;
@@ -117,9 +122,18 @@ pub const TableScreen = struct {
 
     fn updateFocus(self: *TableScreen, ctx: *vxfw.EventContext) !void {
         switch (self.selected) {
-            0 => try ctx.requestFocus(self.hit_btn.widget()),
-            1 => try ctx.requestFocus(self.stand_btn.widget()),
-            2 => try ctx.requestFocus(self.double_btn.widget()),
+            0 => {
+                std.debug.print("[table] updateFocus: requesting focus on hit_btn\n", .{});
+                try ctx.requestFocus(self.hit_btn.widget());
+            },
+            1 => {
+                std.debug.print("[table] updateFocus: requesting focus on stand_btn\n", .{});
+                try ctx.requestFocus(self.stand_btn.widget());
+            },
+            2 => {
+                std.debug.print("[table] updateFocus: requesting focus on double_btn\n", .{});
+                try ctx.requestFocus(self.double_btn.widget());
+            },
             else => {},
         }
     }
@@ -215,10 +229,12 @@ pub const TableScreen = struct {
             children[5] = double_sub;
         }
 
+        var _empty_table_cells: [0]vaxis.Cell = .{};
+
         return .{
             .size = size,
             .widget = model.widget(),
-            .buffer = &.{},
+            .buffer = &_empty_table_cells,
             .children = children,
         };
     }

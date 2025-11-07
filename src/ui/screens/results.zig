@@ -54,7 +54,11 @@ pub const ResultsScreen = struct {
         event: vxfw.Event,
     ) !void {
         switch (event) {
-            .init => try ctx.requestFocus(self.play_again_btn.widget()),
+            .init => {
+                // Avoid requesting focus during init; rely on navigation to
+                // set focus. This prevents vxfw from asserting when the
+                // widget path is not yet present.
+            },
 
             .key_press => |key| {
                 if (key.matches('q', .{}) or key.matches('c', .{ .ctrl = true })) {
@@ -83,8 +87,14 @@ pub const ResultsScreen = struct {
 
     fn updateFocus(self: *ResultsScreen, ctx: *vxfw.EventContext) !void {
         switch (self.selected) {
-            0 => try ctx.requestFocus(self.play_again_btn.widget()),
-            1 => try ctx.requestFocus(self.quit_btn.widget()),
+            0 => {
+                std.debug.print("[results] updateFocus: requesting focus on play_again_btn\n", .{});
+                try ctx.requestFocus(self.play_again_btn.widget());
+            },
+            1 => {
+                std.debug.print("[results] updateFocus: requesting focus on quit_btn\n", .{});
+                try ctx.requestFocus(self.quit_btn.widget());
+            },
             else => {},
         }
     }
@@ -140,10 +150,12 @@ pub const ResultsScreen = struct {
         children[4] = .{ .origin = .{ .row = btn_row1, .col = mid - (play_surf.size.width / 2) }, .surface = play_surf };
         children[5] = .{ .origin = .{ .row = btn_row2, .col = mid - (quit_surf.size.width / 2) }, .surface = quit_surf };
 
+        var _empty_results_cells: [0]vaxis.Cell = .{};
+
         return .{
             .size = size,
             .widget = model.widget(),
-            .buffer = &.{},
+            .buffer = &_empty_results_cells,
             .children = children,
         };
     }
