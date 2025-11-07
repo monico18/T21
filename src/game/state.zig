@@ -1,4 +1,5 @@
 const std = @import("std");
+// no C imports: prefer a simple local save dir under the current working directory
 const Deck = @import("deck.zig").Deck;
 const Player = @import("player.zig").Player;
 const rules = @import("rules.zig");
@@ -199,5 +200,29 @@ pub const GameState = struct {
         const v: u32 = @as(u32, buf[0]) | (@as(u32, buf[1]) << 8) | (@as(u32, buf[2]) << 16) | (@as(u32, buf[3]) << 24);
 
         self.player.bankroll = @intCast(v);
+    }
+
+    /// Save to the user's home config location (~/.t21/bankroll.bin) if
+    /// possible, otherwise fall back to the current working directory.
+    pub fn saveBankrollDefault(self: *GameState) !void {
+        // Attempt to save into a local .t21 file in cwd; if that fails,
+        // fall back to a simple bankroll.bin in cwd.
+        self.saveBankroll(".t21/bankroll.bin") catch {
+            try self.saveBankroll("bankroll.bin");
+        };
+    }
+
+    /// Load from the user's home config location (~/.t21/bankroll.bin) if
+    /// possible, otherwise fall back to $HOME/bankroll.bin or ./bankroll.bin.
+    pub fn loadBankrollDefault(self: *GameState) !void {
+        // Prefer the local .t21 directory under cwd
+        const f = std.fs.cwd().openFile(".t21/bankroll.bin", .{}) catch null;
+        if (f != null) {
+            _ = f.close();
+            try self.loadBankroll(".t21/bankroll.bin");
+            return;
+        }
+        // fallback to cwd
+        try self.loadBankroll("bankroll.bin");
     }
 };

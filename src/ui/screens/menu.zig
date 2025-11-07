@@ -11,6 +11,7 @@ pub const MenuScreen = struct {
 
     play_btn: ButtonWidget,
     save_btn: ButtonWidget,
+    save_quit_btn: ButtonWidget,
     quit_btn: ButtonWidget,
 
     pub fn init(model: *Model) MenuScreen {
@@ -25,12 +26,22 @@ pub const MenuScreen = struct {
             }
         }.cb;
 
-        // --- Save & Quit callback -------------------------------------------
-        const onSave = struct {
+        // --- Save (no quit) callback ----------------------------------------
+        const onSaveOnly = struct {
             fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
                 const m: *Model = @ptrCast(@alignCast(userdata.?));
-                // Persist bankroll to a local file and then quit.
-                try m.game.saveBankroll("bankroll.bin");
+                try m.game.saveBankrollDefault();
+                // show a simple status message
+                m.status.setMessage("Saved.");
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // --- Save & Quit callback -------------------------------------------
+        const onSaveAndQuit = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const m: *Model = @ptrCast(@alignCast(userdata.?));
+                try m.game.saveBankrollDefault();
                 ctx.quit = true;
             }
         }.cb;
@@ -45,7 +56,8 @@ pub const MenuScreen = struct {
         return MenuScreen{
             .selected = 0,
             .play_btn = .{ .label = "Play", .onClick = onPlay, .userdata = model },
-            .save_btn = .{ .label = "Save & Quit", .onClick = onSave, .userdata = model },
+            .save_btn = .{ .label = "Save", .onClick = onSaveOnly, .userdata = model },
+            .save_quit_btn = .{ .label = "Save & Quit", .onClick = onSaveAndQuit, .userdata = model },
             .quit_btn = .{ .label = "Quit", .onClick = onQuit, .userdata = null },
         };
     }
@@ -80,7 +92,7 @@ pub const MenuScreen = struct {
 
                 // --- navigation: DOWN -----------------------------------------------
                 if (key.matches(vaxis.Key.down, .{}) and isEmpty(key.mods)) {
-                    if (self.selected < 2) self.selected += 1;
+                    if (self.selected < 3) self.selected += 1;
                     try self.updateFocus(ctx);
                     return ctx.consumeAndRedraw();
                 }
@@ -94,7 +106,8 @@ pub const MenuScreen = struct {
         switch (self.selected) {
             0 => try ctx.requestFocus(self.play_btn.widget()),
             1 => try ctx.requestFocus(self.save_btn.widget()),
-            2 => try ctx.requestFocus(self.quit_btn.widget()),
+            2 => try ctx.requestFocus(self.save_quit_btn.widget()),
+            3 => try ctx.requestFocus(self.quit_btn.widget()),
             else => {},
         }
     }
@@ -108,14 +121,16 @@ pub const MenuScreen = struct {
 
         const play_surf = try self.play_btn.draw(ctx);
         const save_surf = try self.save_btn.draw(ctx);
+        const save_quit_surf = try self.save_quit_btn.draw(ctx);
         const quit_surf = try self.quit_btn.draw(ctx);
 
         const y_title = size.height / 4;
         const y_play = size.height / 2 - 1;
         const y_save = y_play + play_surf.size.height + 1;
-        const y_quit = y_save + save_surf.size.height + 1;
+        const y_save_quit = y_save + save_surf.size.height + 1;
+        const y_quit = y_save_quit + save_quit_surf.size.height + 1;
 
-        const children = try ctx.arena.alloc(vxfw.SubSurface, 4);
+        const children = try ctx.arena.alloc(vxfw.SubSurface, 5);
 
         children[0] = .{
             .origin = .{ .row = y_title, .col = mid - (title_surf.size.width / 2) },
@@ -133,6 +148,11 @@ pub const MenuScreen = struct {
         };
 
         children[3] = .{
+            .origin = .{ .row = y_save_quit, .col = mid - (save_quit_surf.size.width / 2) },
+            .surface = save_quit_surf,
+        };
+
+        children[4] = .{
             .origin = .{ .row = y_quit, .col = mid - (quit_surf.size.width / 2) },
             .surface = quit_surf,
         };

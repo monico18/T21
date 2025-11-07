@@ -108,6 +108,13 @@ pub const Model = struct {
     fn typeErasedDrawFn(ptr: *anyopaque, ctx: vxfw.DrawContext) !vxfw.Surface {
         const self: *Model = @ptrCast(@alignCast(ptr));
 
+        // If the game phase has reached results, ensure the UI shows the
+        // results screen automatically. This lets the model switch to the
+        // results screen without waiting for a key event.
+        if (self.game.phase == .results) {
+            self.current_screen = .results;
+        }
+
         return switch (self.current_screen) {
             .menu => self.menu_screen.draw(self, ctx),
             .betting => self.betting_screen.draw(self, ctx),
