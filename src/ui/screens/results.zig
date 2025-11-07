@@ -7,6 +7,14 @@ const GameState = @import("../../game/state.zig").GameState;
 const RoundOutcome = @import("../../game/rules.zig").RoundOutcome;
 const ButtonWidget = @import("../widgets/button_widget.zig").ButtonWidget;
 
+// Safe centering helper: returns a signed column suitable for SubSurface.origin
+fn center_col(mid: u16, inner_w: u16) i17 {
+    const mid_us = @as(usize, mid);
+    const half = @as(usize, inner_w) / 2;
+    const col_us = if (mid_us > half) mid_us - half else 0;
+    return @intCast(col_us);
+}
+
 pub const ResultsScreen = struct {
     game: *GameState,
     play_again_btn: ButtonWidget,
@@ -169,14 +177,30 @@ pub const ResultsScreen = struct {
         const btn_row3 = btn_row2 + save_surf.size.height + 2;
 
         const children = try ctx.arena.alloc(vxfw.SubSurface, 8);
-        children[0] = .{ .origin = .{ .row = row_base, .col = mid - (t_surf.size.width / 2) }, .surface = t_surf };
-        children[1] = .{ .origin = .{ .row = row_base + 2, .col = mid - (r_surf.size.width / 2) }, .surface = r_surf };
-        children[2] = .{ .origin = .{ .row = row_base + 4, .col = mid - (p_surf.size.width / 2) }, .surface = p_surf };
-        children[3] = .{ .origin = .{ .row = row_base + 6, .col = mid - (d_surf.size.width / 2) }, .surface = d_surf };
-        children[4] = .{ .origin = .{ .row = btn_row1, .col = mid - (play_surf.size.width / 2) }, .surface = play_surf };
-        children[5] = .{ .origin = .{ .row = btn_row2, .col = mid - (save_surf.size.width / 2) }, .surface = save_surf };
-        children[6] = .{ .origin = .{ .row = btn_row3, .col = mid - (back_surf.size.width / 2) }, .surface = back_surf };
-        children[7] = .{ .origin = .{ .row = btn_row3 + back_surf.size.height + 2, .col = mid - (quit_surf.size.width / 2) }, .surface = quit_surf };
+        children[0] = .{ .origin = .{ .row = row_base, .col = center_col(mid, @as(u16, t_surf.size.width)) }, .surface = t_surf };
+        children[1] = .{ .origin = .{ .row = row_base + 2, .col = center_col(mid, @as(u16, r_surf.size.width)) }, .surface = r_surf };
+        children[2] = .{ .origin = .{ .row = row_base + 4, .col = center_col(mid, @as(u16, p_surf.size.width)) }, .surface = p_surf };
+        children[3] = .{ .origin = .{ .row = row_base + 6, .col = center_col(mid, @as(u16, d_surf.size.width)) }, .surface = d_surf };
+        children[4] = .{ .origin = .{ .row = btn_row1, .col = center_col(mid, @as(u16, play_surf.size.width)) }, .surface = play_surf };
+        children[5] = .{ .origin = .{ .row = btn_row2, .col = center_col(mid, @as(u16, save_surf.size.width)) }, .surface = save_surf };
+        children[6] = .{ .origin = .{ .row = btn_row3, .col = center_col(mid, @as(u16, back_surf.size.width)) }, .surface = back_surf };
+        children[7] = .{ .origin = .{ .row = btn_row3 + back_surf.size.height + 2, .col = center_col(mid, @as(u16, quit_surf.size.width)) }, .surface = quit_surf };
+
+        // Debug: report any out-of-bounds child origins before clamping.
+        for (children) |c| {
+            if (c.origin.row > size.height or c.origin.col > size.width) {
+                std.debug.print("[results] child origin out-of-bounds: row={d} col={d} surface={d}x{d} size={d}x{d}\n", .{ c.origin.row, c.origin.col, c.surface.size.width, c.surface.size.height, size.width, size.height });
+            }
+        }
+
+        // Clamp child origins to the surface to prevent unsigned underflow
+        // when vaxis computes child regions.
+        const max_row: u16 = if (size.height > 0) size.height - 1 else 0;
+        const max_col: u16 = if (size.width > 0) size.width - 1 else 0;
+        for (children) |*c| {
+            if (c.origin.row > max_row) c.origin.row = max_row;
+            if (c.origin.col > max_col) c.origin.col = max_col;
+        }
 
         var _empty_results_cells: [0]vaxis.Cell = .{};
 

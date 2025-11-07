@@ -6,6 +6,13 @@ pub const ButtonWidget = struct {
     label: []const u8,
     onClick: *const fn (?*anyopaque, *vxfw.EventContext) anyerror!void,
     userdata: ?*anyopaque = null,
+    // when false, the button renders in a "disabled" style and will not
+    // invoke the onClick callback.
+    enabled: bool = true,
+    // When true the widget will render only the label text without the
+    // surrounding box. This is useful when the caller wants to compose
+    // a custom surrounding frame and keep the button interactive.
+    borderless: bool = false,
 
     pub fn draw(self: *ButtonWidget, ctx: vxfw.DrawContext) !vxfw.Surface {
         return onDraw(self, ctx);
@@ -34,6 +41,7 @@ pub const ButtonWidget = struct {
             .mouse => |m| {
                 // Only activate on left-button press (actual click), not on motion/enter.
                 if (m.type == vaxis.Mouse.Type.press and m.button == vaxis.Mouse.Button.left) {
+                    if (!self.enabled) return;
                     return self.onClick(self.userdata, ctx);
                 }
             },
@@ -56,15 +64,22 @@ pub const ButtonWidget = struct {
         const arena = ctx.arena;
         const buffer = try arena.alloc(vaxis.Cell, usize_w * usize_h);
 
-        // fill background
+        // fill background. when disabled render with a dotted filler to give
+        // a visual cue the button is inactive. When borderless, do not draw
+        // the surrounding box.
+        const fill = if (self.enabled) " " else "·";
         for (buffer) |*c| {
-            c.char = .{ .grapheme = " ", .width = 1 };
+            c.char = .{ .grapheme = fill, .width = 1 };
             c.style = .{};
             c.link = .{};
             c.image = null;
             c.default = false;
             c.wrapped = false;
             c.scale = .{};
+        }
+
+        if (!self.borderless) {
+            drawBox(buffer, usize_w, usize_h);
         }
 
         drawBox(buffer, usize_w, usize_h);

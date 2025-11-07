@@ -9,6 +9,14 @@ const HandWidget = @import("../widgets/hand_widget.zig").HandWidget;
 const StatusWidget = @import("../widgets/status_widget.zig").StatusWidget;
 const ButtonWidget = @import("../widgets/button_widget.zig").ButtonWidget;
 
+// Safe centering helper: returns a signed column suitable for SubSurface.origin
+fn center_col(mid: u16, inner_w: u16) i17 {
+    const mid_us = @as(usize, mid);
+    const half = @as(usize, inner_w) / 2;
+    const col_us = if (mid_us > half) mid_us - half else 0;
+    return @intCast(col_us);
+}
+
 pub const TableScreen = struct {
     game: *GameState,
 
@@ -158,12 +166,32 @@ pub const TableScreen = struct {
             .surface = dealer_surf,
         };
 
-        // Dealer points label
-        const dealer_points_text = try std.fmt.allocPrint(ctx.arena, "Dealer: {d}", .{game.dealer.value()});
+        // Dealer points label: when the dealer's first card is hidden (during
+        // the player's turn) only show the total for face-up cards.
+        const dealer_cards = game.dealer.hand.currentCards();
+        var visible_total: u8 = 0;
+        var visible_aces: u8 = 0;
+        var idx: usize = 0;
+        while (idx < dealer_cards.len) : (idx += 1) {
+            if (hide_first and idx == 0) continue;
+            const c = dealer_cards[idx];
+            visible_total += c.rank.baseValue();
+            if (c.rank == .ace) visible_aces += 1;
+        }
+        var final_total: u8 = visible_total;
+        while (visible_aces > 0 and final_total + 10 <= 21) : (visible_aces -= 1) {
+            final_total += 10;
+        }
+
+        const dealer_points_text = try std.fmt.allocPrint(ctx.arena, "Dealer: {d}", .{final_total});
         const dealer_points_widget = vxfw.Text{ .text = dealer_points_text };
         const dealer_points_surf = try dealer_points_widget.draw(ctx);
         const dealer_label_row: u16 = if (dealer_y > 0) dealer_y - 1 else dealer_y;
-        const dealer_label_col: u16 = dealer_x + (dealer_surf.size.width / 2) - (dealer_points_surf.size.width / 2);
+        // compute dealer label column safely to avoid unsigned underflow
+        const dealer_label_col: u16 = @intCast((if (@as(usize, dealer_x) + (@as(usize, dealer_surf.size.width) / 2) > (@as(usize, dealer_points_surf.size.width) / 2))
+            @as(usize, dealer_x) + (@as(usize, dealer_surf.size.width) / 2) - (@as(usize, dealer_points_surf.size.width) / 2)
+        else
+            0));
         const dealer_label_sub = vxfw.SubSurface{
             .origin = .{ .row = dealer_label_row, .col = dealer_label_col },
             .surface = dealer_points_surf,
@@ -189,7 +217,10 @@ pub const TableScreen = struct {
         const player_points_widget = vxfw.Text{ .text = player_points_text };
         const player_points_surf = try player_points_widget.draw(ctx);
         const player_label_row: u16 = if (player_y > 0) player_y - 1 else player_y;
-        const player_label_col: u16 = player_x + (player_surf.size.width / 2) - (player_points_surf.size.width / 2);
+        const player_label_col: u16 = @intCast((if (@as(usize, player_x) + (@as(usize, player_surf.size.width) / 2) > (@as(usize, player_points_surf.size.width) / 2))
+            @as(usize, player_x) + (@as(usize, player_surf.size.width) / 2) - (@as(usize, player_points_surf.size.width) / 2)
+        else
+            0));
         const player_label_sub = vxfw.SubSurface{
             .origin = .{ .row = player_label_row, .col = player_label_col },
             .surface = player_points_surf,
@@ -225,16 +256,21 @@ pub const TableScreen = struct {
             const base_row = player_y + player_surf.size.height + 2;
             const mid = size.width / 2;
 
+            // compute columns safely to avoid unsigned underflow
+            const hit_col: u16 = if (mid > 20) mid - 20 else 0;
+            const stand_col: u16 = @intCast((if (@as(usize, mid) > (@as(usize, stand_surf.size.width) / 2)) @as(usize, mid) - (@as(usize, stand_surf.size.width) / 2) else 0));
+            const double_col: u16 = if (@as(usize, mid) + 20 < @as(usize, 0xFFFF)) @intCast(@as(usize, mid) + 20) else @intCast(@as(usize, mid));
+
             hit_sub = .{
-                .origin = .{ .row = base_row, .col = mid - 20 },
+                .origin = .{ .row = base_row, .col = hit_col },
                 .surface = hit_surf,
             };
             stand_sub = .{
-                .origin = .{ .row = base_row, .col = mid - (stand_surf.size.width / 2) },
+                .origin = .{ .row = base_row, .col = stand_col },
                 .surface = stand_surf,
             };
             double_sub = .{
-                .origin = .{ .row = base_row, .col = mid + 20 },
+                .origin = .{ .row = base_row, .col = double_col },
                 .surface = double_surf,
             };
 
@@ -253,6 +289,21 @@ pub const TableScreen = struct {
             children[5] = hit_sub;
             children[6] = stand_sub;
             children[7] = double_sub;
+        }
+
+        // Debug: report any out-of-bounds child origins before clamping.
+        for (children) |c| {
+            if (c.origin.row > size.height or c.origin.col > size.width) {
+                std.debug.print("[table] child origin out-of-bounds: row={d} col={d} surface={d}x{d} size={d}x{d}\n", .{ c.origin.row, c.origin.col, c.surface.size.width, c.surface.size.height, size.width, size.height });
+            }
+        }
+
+        // Clamp children origins to avoid unsigned underflow in vaxis
+        const max_row: u16 = if (size.height > 0) size.height - 1 else 0;
+        const max_col: u16 = if (size.width > 0) size.width - 1 else 0;
+        for (children) |*c| {
+            if (c.origin.row > max_row) c.origin.row = max_row;
+            if (c.origin.col > max_col) c.origin.col = max_col;
         }
 
         var _empty_table_cells: [0]vaxis.Cell = .{};
