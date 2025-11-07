@@ -8,6 +8,8 @@ jobs:
   build:
     name: Build & Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      ZIG_VERSION: 0.15.2
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -53,6 +55,10 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          if (-not $env:ZIG_VERSION) {
+            Write-Error "ZIG_VERSION is not set"
+            exit 1
+          }
           $Z = $env:ZIG_VERSION
           $zip = "zig-x86_64-windows-$Z.zip"
           $url = "https://ziglang.org/download/$Z/$zip"
@@ -60,7 +66,8 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $zip
           Expand-Archive -Path $zip -DestinationPath .
           $dir = (Get-ChildItem -Directory | Where-Object { $_.Name -like "zig-*" } | Select-Object -First 1).FullName
-          Add-Content -Path $env:GITHUB_PATH -Value $dir
+          $full = Join-Path $PWD $dir
+          Add-Content -Path $env:GITHUB_PATH -Value $full
 
       - name: Print Zig version
         run: zig version
