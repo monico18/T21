@@ -70,7 +70,7 @@ jobs:
             OS_LABEL=${{ matrix.os }}
             OS_LABEL=${OS_LABEL//ubuntu-latest/linux}
             OS_LABEL=${OS_LABEL//macos-latest/macos}
-            OUT="zig-out/bin/T21-${OS_LABEL}-v${{ github.run_number }}-${SHORT_SHA}"
+            OUT="zig-out/bin/T21-${OS_LABEL}-${SHORT_SHA}"
             echo "Renaming $BIN -> $OUT"
             mv "$BIN" "$OUT"
           else
