@@ -10,9 +10,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       ZIG_VERSION: 0.15.2
-    strategy:
+      strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,30 +50,6 @@ jobs:
           DIR=$(tar -tf $TAR | head -1 | cut -f1 -d"/")
           echo "${PWD}/${DIR}" >> $GITHUB_PATH
 
-      - name: Download and extract Zig (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not $env:ZIG_VERSION) {
-            Write-Error "ZIG_VERSION is not set"
-            exit 1
-          }
-          $Z = $env:ZIG_VERSION
-          $zip = "zig-x86_64-windows-$Z.zip"
-          $url = "https://ziglang.org/download/$Z/$zip"
-          Write-Host "Downloading $url"
-          Invoke-WebRequest -Uri $url -OutFile $zip
-          Expand-Archive -Path $zip -DestinationPath .
-          $dir = (Get-ChildItem -Directory | Where-Object { $_.Name -like "zig-*" } | Select-Object -First 1).FullName
-          # Ensure we have an absolute path to the extracted dir
-          $full = if ([System.IO.Path]::IsPathRooted($dir)) { $dir } else { Join-Path $PWD $dir }
-          Write-Host "Zig extracted to: $full"
-          # Add to GITHUB_PATH so subsequent steps pick it up
-          Add-Content -Path $env:GITHUB_PATH -Value $full
-          # Also prepend to PATH for the current job explicitly via GITHUB_ENV (use ';' on Windows)
-          Add-Content -Path $env:GITHUB_ENV -Value ("PATH=$full;$env:PATH")
-
       - name: Print Zig version
         run: zig version
 
@@ -91,3 +67,23 @@ jobs:
           path: |
             zig-out/bin/T21
             zig-out/bin/*
+
+  release:
+    name: Create GitHub Release and upload artifacts
+    runs-on: ubuntu-latest
+    needs: build
+    if: needs.build.result == 'success' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Download all job artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Create GitHub Release and upload binaries
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release ${{ github.run_number }}
+          files: ./artifacts/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
