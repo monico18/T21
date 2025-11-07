@@ -76,7 +76,7 @@ jobs:
         run: zig build
 
       - name: Run tests
-        run: zig test src/game
+        run: zig build test
 
       - name: Upload built binary
         if: success()
