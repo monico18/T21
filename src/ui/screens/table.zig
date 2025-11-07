@@ -79,10 +79,10 @@ pub const TableScreen = struct {
         // taking the address of a stack-local value.
         return TableScreen{
             .game = game,
-            .hit_btn = .{ .label = "Hit", .onClick = onHit, .userdata = null },
-            .stand_btn = .{ .label = "Stand", .onClick = onStand, .userdata = null },
-            .double_btn = .{ .label = "Double", .onClick = onDouble, .userdata = null },
-            .split_btn = .{ .label = "Split", .onClick = onSplit, .userdata = null },
+            .hit_btn = .{ .label = "[H]it", .onClick = onHit, .userdata = null },
+            .stand_btn = .{ .label = "[S]tand", .onClick = onStand, .userdata = null },
+            .double_btn = .{ .label = "[D]ouble", .onClick = onDouble, .userdata = null },
+            .split_btn = .{ .label = "Spli[t]", .onClick = onSplit, .userdata = null },
             .selected = 0,
             .blink_counter = 0,
         };
@@ -152,6 +152,11 @@ pub const TableScreen = struct {
                     }
                     if (key.matches('d', .{})) {
                         self.game.playerDouble();
+                        _ = ctx.consumeAndRedraw();
+                        return;
+                    }
+                    if (key.matches('t', .{})) {
+                        self.game.playerSplit();
                         _ = ctx.consumeAndRedraw();
                         return;
                     }
