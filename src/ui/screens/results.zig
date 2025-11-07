@@ -10,6 +10,8 @@ const ButtonWidget = @import("../widgets/button_widget.zig").ButtonWidget;
 pub const ResultsScreen = struct {
     game: *GameState,
     play_again_btn: ButtonWidget,
+    save_btn: ButtonWidget,
+    back_btn: ButtonWidget,
     quit_btn: ButtonWidget,
     selected: usize = 0,
 
@@ -28,6 +30,29 @@ pub const ResultsScreen = struct {
             }
         }.cb;
 
+        // --------------------- SAVE --------------------
+        const onSave = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *ResultsScreen = @ptrCast(@alignCast(userdata.?));
+                // model stored in quit_btn.userdata
+                const model_ptr: *Model = @ptrCast(@alignCast(self.quit_btn.userdata.?));
+                try self.game.saveBankrollDefault();
+                model_ptr.status.setMessage("Saved.");
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // --------------------- BACK --------------------
+        const onBack = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *ResultsScreen = @ptrCast(@alignCast(userdata.?));
+                // model stored in quit_btn.userdata
+                const model_ptr: *Model = @ptrCast(@alignCast(self.quit_btn.userdata.?));
+                model_ptr.current_screen = .menu;
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
         // --------------------- QUIT --------------------
         const onQuit = struct {
             fn cb(_: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
@@ -42,6 +67,8 @@ pub const ResultsScreen = struct {
         return ResultsScreen{
             .game = game,
             .play_again_btn = .{ .label = "Play Again", .onClick = onPlayAgain, .userdata = null },
+            .save_btn = .{ .label = "Save", .onClick = onSave, .userdata = null },
+            .back_btn = .{ .label = "Back", .onClick = onBack, .userdata = null },
             .quit_btn = .{ .label = "Quit", .onClick = onQuit, .userdata = model },
             .selected = 0,
         };
@@ -74,7 +101,7 @@ pub const ResultsScreen = struct {
                 }
 
                 if (key.matches(vaxis.Key.down, .{})) {
-                    if (self.selected < 1) self.selected += 1;
+                    if (self.selected < 3) self.selected += 1;
                     try updateFocus(self, ctx);
                     _ = ctx.consumeAndRedraw();
                     return;
@@ -87,14 +114,10 @@ pub const ResultsScreen = struct {
 
     fn updateFocus(self: *ResultsScreen, ctx: *vxfw.EventContext) !void {
         switch (self.selected) {
-            0 => {
-                std.debug.print("[results] updateFocus: requesting focus on play_again_btn\n", .{});
-                try ctx.requestFocus(self.play_again_btn.widget());
-            },
-            1 => {
-                std.debug.print("[results] updateFocus: requesting focus on quit_btn\n", .{});
-                try ctx.requestFocus(self.quit_btn.widget());
-            },
+            0 => try ctx.requestFocus(self.play_again_btn.widget()),
+            1 => try ctx.requestFocus(self.save_btn.widget()),
+            2 => try ctx.requestFocus(self.back_btn.widget()),
+            3 => try ctx.requestFocus(self.quit_btn.widget()),
             else => {},
         }
     }
@@ -136,19 +159,24 @@ pub const ResultsScreen = struct {
         const d_surf = try dealer_line.draw(ctx);
 
         const play_surf = try self.play_again_btn.draw(ctx);
+        const save_surf = try self.save_btn.draw(ctx);
+        const back_surf = try self.back_btn.draw(ctx);
         const quit_surf = try self.quit_btn.draw(ctx);
 
         const row_base = size.height / 4;
         const btn_row1 = row_base + 10;
         const btn_row2 = btn_row1 + play_surf.size.height + 2;
+        const btn_row3 = btn_row2 + save_surf.size.height + 2;
 
-        const children = try ctx.arena.alloc(vxfw.SubSurface, 6);
+        const children = try ctx.arena.alloc(vxfw.SubSurface, 8);
         children[0] = .{ .origin = .{ .row = row_base, .col = mid - (t_surf.size.width / 2) }, .surface = t_surf };
         children[1] = .{ .origin = .{ .row = row_base + 2, .col = mid - (r_surf.size.width / 2) }, .surface = r_surf };
         children[2] = .{ .origin = .{ .row = row_base + 4, .col = mid - (p_surf.size.width / 2) }, .surface = p_surf };
         children[3] = .{ .origin = .{ .row = row_base + 6, .col = mid - (d_surf.size.width / 2) }, .surface = d_surf };
         children[4] = .{ .origin = .{ .row = btn_row1, .col = mid - (play_surf.size.width / 2) }, .surface = play_surf };
-        children[5] = .{ .origin = .{ .row = btn_row2, .col = mid - (quit_surf.size.width / 2) }, .surface = quit_surf };
+        children[5] = .{ .origin = .{ .row = btn_row2, .col = mid - (save_surf.size.width / 2) }, .surface = save_surf };
+        children[6] = .{ .origin = .{ .row = btn_row3, .col = mid - (back_surf.size.width / 2) }, .surface = back_surf };
+        children[7] = .{ .origin = .{ .row = btn_row3 + back_surf.size.height + 2, .col = mid - (quit_surf.size.width / 2) }, .surface = quit_surf };
 
         var _empty_results_cells: [0]vaxis.Cell = .{};
 
