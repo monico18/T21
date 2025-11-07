@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       ZIG_VERSION: 0.15.2
-      strategy:
+    strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
