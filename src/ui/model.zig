@@ -26,6 +26,14 @@ pub const Model = struct {
     // Global status bar
     status: StatusWidget,
 
+    // When a round ends while the player is still viewing the table, we
+    // briefly hold on the table screen for a few frames so the player can
+    // see their final cards (e.g., Blackjack) before automatically
+    // switching to the results screen. This is a frame-based delay; the
+    // draw loop decrements the counter once per frame.
+    results_delay_frames: u32 = 30,
+    results_hold_counter: u32 = 0,
+
     // Screens
     menu_screen: menu.MenuScreen,
     betting_screen: betting.BettingScreen,
@@ -76,9 +84,9 @@ pub const Model = struct {
         // ResultsScreen.init leaves play_again_btn.userdata null to avoid
         // taking the address of a stack-local value. Now that the
         // ResultsScreen is stored in `model`, point the button userdata to it.
-        model.results_screen.play_again_btn.userdata = &model.results_screen;
-        model.results_screen.save_btn.userdata = &model.results_screen;
-        model.results_screen.back_btn.userdata = model;
+    model.results_screen.play_again_btn.userdata = &model.results_screen;
+    model.results_screen.save_btn.userdata = &model.results_screen;
+    model.results_screen.back_btn.userdata = &model.results_screen;
 
         return model;
     }
@@ -111,10 +119,31 @@ pub const Model = struct {
         const self: *Model = @ptrCast(@alignCast(ptr));
 
         // If the game phase has reached results, ensure the UI shows the
-        // results screen automatically. This lets the model switch to the
-        // results screen without waiting for a key event.
+        // results screen automatically. When the player is currently
+        // viewing the table we briefly hold on the table screen so they
+        // can see their final cards (e.g., Blackjack) before switching to
+        // the results screen. This is a simple frame-based delay.
         if (self.game.phase == .results) {
-            self.current_screen = .results;
+            if (self.current_screen == .table) {
+                if (self.results_hold_counter == 0) {
+                    // initialize the hold counter when we first observe
+                    // results while on the table
+                    self.results_hold_counter = self.results_delay_frames;
+                } else {
+                    // decrement each draw frame; when it reaches zero we
+                    // actually flip to the results screen
+                    self.results_hold_counter -= 1;
+                    if (self.results_hold_counter == 0) {
+                        self.current_screen = .results;
+                    }
+                }
+            } else {
+                // not currently on table; go straight to results
+                self.current_screen = .results;
+            }
+        } else {
+            // clear any pending hold when not in results phase
+            self.results_hold_counter = 0;
         }
 
         return switch (self.current_screen) {
