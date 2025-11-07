@@ -45,18 +45,27 @@ pub const Model = struct {
 
         // Initialize screens (MUST be after model is allocated)
         model.menu_screen = menu.MenuScreen.init(model);
-        model.betting_screen = try betting.BettingScreen.init(model, &model.game);
+    model.betting_screen = try betting.BettingScreen.init(model, &model.game);
+    // Initialize table screen (store the game pointer into the screen)
+    model.table_screen = table.TableScreen.init(&model.game);
         // BettingScreen.init leaves button userdata null to avoid taking the
         // address of a stack-local value. Set userdata to point to the
         // stored betting_screen now that it's placed inside `model`.
         model.betting_screen.plus_btn.userdata = &model.betting_screen;
+        model.betting_screen.plus25_btn.userdata = &model.betting_screen;
+        model.betting_screen.plus50_btn.userdata = &model.betting_screen;
+        model.betting_screen.plus_btn.userdata = &model.betting_screen;
+        model.betting_screen.plus25_btn.userdata = &model.betting_screen;
+        model.betting_screen.plus50_btn.userdata = &model.betting_screen;
+        model.betting_screen.plus100_btn.userdata = &model.betting_screen;
         model.betting_screen.minus_btn.userdata = &model.betting_screen;
+        model.betting_screen.minus25_btn.userdata = &model.betting_screen;
+        model.betting_screen.minus50_btn.userdata = &model.betting_screen;
+        model.betting_screen.minus100_btn.userdata = &model.betting_screen;
+        model.betting_screen.all_in_btn.userdata = &model.betting_screen;
+        model.betting_screen.clear_btn.userdata = &model.betting_screen;
         model.betting_screen.confirm_btn.userdata = &model.betting_screen;
         model.betting_screen.back_btn.userdata = &model.betting_screen;
-        model.table_screen = table.TableScreen.init(&model.game);
-        // TableScreen.init leaves button userdata null to avoid taking the
-        // address of a stack-local value. Set userdata to point to the
-        // stored table_screen now that it's placed inside `model`.
         model.table_screen.hit_btn.userdata = &model.table_screen;
         model.table_screen.stand_btn.userdata = &model.table_screen;
         model.table_screen.double_btn.userdata = &model.table_screen;

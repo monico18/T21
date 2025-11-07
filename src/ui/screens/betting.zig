@@ -13,7 +13,15 @@ pub const BettingScreen = struct {
     bet: i32 = 10,
 
     plus_btn: ButtonWidget,
+    plus25_btn: ButtonWidget,
+    plus50_btn: ButtonWidget,
+    plus100_btn: ButtonWidget,
     minus_btn: ButtonWidget,
+    minus25_btn: ButtonWidget,
+    minus50_btn: ButtonWidget,
+    minus100_btn: ButtonWidget,
+    all_in_btn: ButtonWidget,
+    clear_btn: ButtonWidget,
     confirm_btn: ButtonWidget,
     back_btn: ButtonWidget,
 
@@ -35,6 +43,90 @@ pub const BettingScreen = struct {
             fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
                 const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
                 if (self.bet > 1) self.bet -= 1;
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // +25 button
+        const onPlus25 = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
+                self.bet += 25;
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // -25 button
+        const onMinus25 = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
+                if (self.bet > 25) {
+                    self.bet -= 25;
+                } else {
+                    self.bet = 0;
+                }
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // -50 button
+        const onMinus50 = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
+                if (self.bet > 50) {
+                    self.bet -= 50;
+                } else {
+                    self.bet = 0;
+                }
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // -100 button
+        const onMinus100 = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
+                if (self.bet > 100) {
+                    self.bet -= 100;
+                } else {
+                    self.bet = 0;
+                }
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // Clear bet
+        const onClear = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
+                self.bet = 0;
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // +50 button
+        const onPlus50 = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
+                self.bet += 50;
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // +100 button
+        const onPlus100 = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
+                self.bet += 100;
+                _ = ctx.consumeAndRedraw();
+            }
+        }.cb;
+
+        // All-in button
+        const onAllIn = struct {
+            fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
+                const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
+                self.bet = self.game.player.bankroll;
                 _ = ctx.consumeAndRedraw();
             }
         }.cb;
@@ -75,7 +167,15 @@ pub const BettingScreen = struct {
             .bet = 10,
 
             .plus_btn = .{ .label = "+1", .onClick = onPlus, .userdata = null },
+            .plus25_btn = .{ .label = "+25", .onClick = onPlus25, .userdata = null },
+            .plus50_btn = .{ .label = "+50", .onClick = onPlus50, .userdata = null },
+            .plus100_btn = .{ .label = "+100", .onClick = onPlus100, .userdata = null },
             .minus_btn = .{ .label = "-1", .onClick = onMinus, .userdata = null },
+            .minus25_btn = .{ .label = "-25", .onClick = onMinus25, .userdata = null },
+            .minus50_btn = .{ .label = "-50", .onClick = onMinus50, .userdata = null },
+            .minus100_btn = .{ .label = "-100", .onClick = onMinus100, .userdata = null },
+            .all_in_btn = .{ .label = "All In", .onClick = onAllIn, .userdata = null },
+            .clear_btn = .{ .label = "Clear", .onClick = onClear, .userdata = null },
             .confirm_btn = .{ .label = "Confirm", .onClick = onConfirm, .userdata = null },
             .back_btn = .{ .label = "Back", .onClick = onBack, .userdata = null },
 
@@ -105,7 +205,7 @@ pub const BettingScreen = struct {
                 }
 
                 if (key.matches(vaxis.Key.down, .{})) {
-                    if (self.selected < 3) self.selected += 1;
+                    if (self.selected < 11) self.selected += 1;
                     try updateFocus(self, ctx);
                     _ = ctx.consumeAndRedraw();
                     return;
@@ -134,14 +234,53 @@ pub const BettingScreen = struct {
                 try ctx.requestFocus(self.plus_btn.widget());
             },
             1 => {
+                std.debug.print("[betting] updateFocus: requesting focus on plus25_btn\n", .{});
+                try ctx.requestFocus(self.plus25_btn.widget());
+            },
+            2 => {
+                std.debug.print("[betting] updateFocus: requesting focus on plus50_btn\n", .{});
+                try ctx.requestFocus(self.plus50_btn.widget());
+            },
+            3 => {
+                std.debug.print("[betting] updateFocus: requesting focus on plus100_btn\n", .{});
+                try ctx.requestFocus(self.plus100_btn.widget());
+            },
+            4 => {
                 std.debug.print("[betting] updateFocus: requesting focus on minus_btn\n", .{});
                 try ctx.requestFocus(self.minus_btn.widget());
             },
-            2 => {
-                std.debug.print("[betting] updateFocus: requesting focus on confirm_btn\n", .{});
-                try ctx.requestFocus(self.confirm_btn.widget());
+            5 => {
+                std.debug.print("[betting] updateFocus: requesting focus on minus25_btn\n", .{});
+                try ctx.requestFocus(self.minus25_btn.widget());
             },
-            3 => {
+            6 => {
+                std.debug.print("[betting] updateFocus: requesting focus on minus50_btn\n", .{});
+                try ctx.requestFocus(self.minus50_btn.widget());
+            },
+            7 => {
+                std.debug.print("[betting] updateFocus: requesting focus on minus100_btn\n", .{});
+                try ctx.requestFocus(self.minus100_btn.widget());
+            },
+            8 => {
+                std.debug.print("[betting] updateFocus: requesting focus on all_in_btn\n", .{});
+                try ctx.requestFocus(self.all_in_btn.widget());
+            },
+            9 => {
+                std.debug.print("[betting] updateFocus: requesting focus on clear_btn\n", .{});
+                try ctx.requestFocus(self.clear_btn.widget());
+            },
+            10 => {
+                // Confirm: only focusable if bet > 0
+                if (self.bet > 0) {
+                    std.debug.print("[betting] updateFocus: requesting focus on confirm_btn\n", .{});
+                    try ctx.requestFocus(self.confirm_btn.widget());
+                } else {
+                    // skip to back if confirm should be disabled
+                    std.debug.print("[betting] updateFocus: confirm disabled, focusing back_btn\n", .{});
+                    try ctx.requestFocus(self.back_btn.widget());
+                }
+            },
+            11 => {
                 std.debug.print("[betting] updateFocus: requesting focus on back_btn\n", .{});
                 try ctx.requestFocus(self.back_btn.widget());
             },
@@ -166,7 +305,11 @@ pub const BettingScreen = struct {
         const bet_surf = try bet.draw(ctx);
 
         const plus_surf = try self.plus_btn.draw(ctx);
+        const plus25_surf = try self.plus25_btn.draw(ctx);
+        const plus50_surf = try self.plus50_btn.draw(ctx);
+        const plus100_surf = try self.plus100_btn.draw(ctx);
         const minus_surf = try self.minus_btn.draw(ctx);
+        const all_in_surf = try self.all_in_btn.draw(ctx);
         const confirm_surf = try self.confirm_btn.draw(ctx);
         const back_surf = try self.back_btn.draw(ctx);
 
@@ -178,14 +321,44 @@ pub const BettingScreen = struct {
         const row2 = row1 + plus_surf.size.height + 2;
         const row3 = row2 + confirm_surf.size.height + 2;
 
-        const children = try ctx.arena.alloc(vxfw.SubSurface, 7);
+        // buttons in row1: plus, +25, +50, +100, minus, all-in
+        const btns: [10]vxfw.Surface = .{
+            plus_surf,
+            plus25_surf,
+            plus50_surf,
+            plus100_surf,
+            minus_surf,
+            // negative increments
+            try self.minus25_btn.draw(ctx),
+            try self.minus50_btn.draw(ctx),
+            try self.minus100_btn.draw(ctx),
+            all_in_surf,
+            try self.clear_btn.draw(ctx),
+        };
+        var total_btns_w: usize = 0;
+        var i: usize = 0;
+        while (i < btns.len) : (i += 1) {
+            total_btns_w += btns[i].size.width;
+        }
+        const gap: usize = 2;
+        total_btns_w += gap * (btns.len - 1);
+
+        const start_col: usize = if (total_btns_w > mid) 0 else mid - (total_btns_w / 2);
+
+        const children = try ctx.arena.alloc(vxfw.SubSurface, 15);
         children[0] = .{ .origin = .{ .row = y_title, .col = mid - (t_surf.size.width / 2) }, .surface = t_surf };
         children[1] = .{ .origin = .{ .row = y_bank, .col = mid - (b_surf.size.width / 2) }, .surface = b_surf };
         children[2] = .{ .origin = .{ .row = y_bet, .col = mid - (bet_surf.size.width / 2) }, .surface = bet_surf };
-        children[3] = .{ .origin = .{ .row = row1, .col = mid - plus_surf.size.width - 2 }, .surface = plus_surf };
-        children[4] = .{ .origin = .{ .row = row1, .col = mid + 2 }, .surface = minus_surf };
-        children[5] = .{ .origin = .{ .row = row2, .col = mid - (confirm_surf.size.width / 2) }, .surface = confirm_surf };
-        children[6] = .{ .origin = .{ .row = row3, .col = mid - (back_surf.size.width / 2) }, .surface = back_surf };
+
+        var col_cursor: usize = start_col;
+        i = 0;
+        while (i < btns.len) : (i += 1) {
+            children[3 + i] = .{ .origin = .{ .row = row1, .col = @intCast(col_cursor) }, .surface = btns[i] };
+            col_cursor += btns[i].size.width + gap;
+        }
+
+        children[13] = .{ .origin = .{ .row = row2, .col = mid - (confirm_surf.size.width / 2) }, .surface = confirm_surf };
+        children[14] = .{ .origin = .{ .row = row3, .col = mid - (back_surf.size.width / 2) }, .surface = back_surf };
 
         var _empty_betting_cells: [0]vaxis.Cell = .{};
 

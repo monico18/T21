@@ -84,10 +84,16 @@ pub const ButtonWidget = struct {
             .size = .{ .width = @intCast(w), .height = @intCast(h) },
             .widget = self.widget(),
             .buffer = buffer,
-            .children = &.{},
+            .children = &_empty_button_children,
         };
     }
 };
+
+// Typed zero-length children for ButtonWidget to avoid returning the
+// address of a temporary stack literal (&{}), which becomes invalid
+// after the draw function returns and can cause crashes during layout
+// or event handling.
+var _empty_button_children: [0]vxfw.SubSurface = .{};
 
 fn drawBox(buf: []vaxis.Cell, w: usize, h: usize) void {
     buf[0].char.grapheme = "┌";
