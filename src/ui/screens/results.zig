@@ -122,36 +122,101 @@ pub const ResultsScreen = struct {
         const size = ctx.max.size();
         const mid = size.width / 2;
 
-        const outcome = self.game.last_outcome orelse RoundOutcome.push;
-
-        const result_text = switch (outcome) {
-            .player_blackjack => "Blackjack! You win!",
-            .dealer_blackjack => "Dealer has Blackjack. You lose.",
-            .player_win => "You win!",
-            .dealer_win => "You lose.",
-            .push => "Push.",
-        };
+        // For split rounds, compute a top-line summary based on per-hand
+        // outcomes. This avoids showing a misleading single-hand outcome
+        // (which previously used the last processed hand) when multiple
+        // hands are present.
+        var result_text: []const u8 = "";
+        if (self.game.last_hand_count <= 1) {
+            const outcome = self.game.last_outcome orelse RoundOutcome.push;
+            result_text = switch (outcome) {
+                .player_blackjack => "Blackjack! You win!",
+                .dealer_blackjack => "Dealer has Blackjack. You lose.",
+                .player_win => "You win!",
+                .dealer_win => "You lose.",
+                .push => "Push.",
+            };
+        } else {
+            // two hands: summarize
+            const o0 = self.game.last_outcomes[0];
+            const o1 = self.game.last_outcomes[1];
+            const both_player = (o0 == RoundOutcome.player_win or o0 == RoundOutcome.player_blackjack) and (o1 == RoundOutcome.player_win or o1 == RoundOutcome.player_blackjack);
+            const both_dealer = (o0 == RoundOutcome.dealer_win or o0 == RoundOutcome.dealer_blackjack) and (o1 == RoundOutcome.dealer_win or o1 == RoundOutcome.dealer_blackjack);
+            const both_push = (o0 == RoundOutcome.push) and (o1 == RoundOutcome.push);
+            if (both_player) {
+                result_text = "You won both hands!";
+            } else if (both_dealer) {
+                result_text = "You lost both hands.";
+            } else if (both_push) {
+                result_text = "Both hands pushed.";
+            } else {
+                result_text = "Mixed results.";
+            }
+        }
 
         const title = vxfw.Text{ .text = "ROUND RESULTS" };
         const result = vxfw.Text{ .text = result_text };
-        const player_line = vxfw.Text{
-            .text = try std.fmt.allocPrint(
-                ctx.arena,
-                "Player: {d}   Cards: {d}",
-                .{ self.game.player.hand.value(), self.game.player.hand.count },
-            ),
-        };
+        // Player lines: if split, show both hands separately with bets.
+        var player_line0_surf: ?vxfw.Surface = null;
+        var player_line1_surf: ?vxfw.Surface = null;
+
+        // Map per-hand RoundOutcome -> short label for display
+
+        if (self.game.last_hand_count <= 1) {
+            const prefix = switch (self.game.last_outcomes[0]) {
+                .player_blackjack => "Blackjack!",
+                .dealer_blackjack => "Dealer BJ",
+                .player_win => "You win",
+                .dealer_win => "You lose",
+                .push => "Push",
+            };
+            const player_line = vxfw.Text{
+                .text = try std.fmt.allocPrint(
+                    ctx.arena,
+                    "{s}  Player: Value: {d}   Bet: {d}",
+                    .{ prefix, self.game.player.handValue(0), self.game.last_bets[0] },
+                ),
+            };
+            player_line0_surf = try player_line.draw(ctx);
+        } else {
+            const p0_prefix = switch (self.game.last_outcomes[0]) {
+                .player_blackjack => "Blackjack!",
+                .dealer_blackjack => "Dealer BJ",
+                .player_win => "You win",
+                .dealer_win => "You lose",
+                .push => "Push",
+            };
+            const p1_prefix = switch (self.game.last_outcomes[1]) {
+                .player_blackjack => "Blackjack!",
+                .dealer_blackjack => "Dealer BJ",
+                .player_win => "You win",
+                .dealer_win => "You lose",
+                .push => "Push",
+            };
+            const p0 = vxfw.Text{
+                .text = try std.fmt.allocPrint(ctx.arena, "{s}  Player (1): Value: {d}   Bet: {d}", .{ p0_prefix, self.game.player.handValue(0), self.game.last_bets[0] }),
+            };
+            const p1 = vxfw.Text{
+                .text = try std.fmt.allocPrint(ctx.arena, "{s}  Player (2): Value: {d}   Bet: {d}", .{ p1_prefix, self.game.player.handValue(1), self.game.last_bets[1] }),
+            };
+            player_line0_surf = try p0.draw(ctx);
+            player_line1_surf = try p1.draw(ctx);
+        }
+
         const dealer_line = vxfw.Text{
             .text = try std.fmt.allocPrint(
                 ctx.arena,
                 "Dealer: {d}   Cards: {d}",
-                .{ self.game.dealer.hand.value(), self.game.dealer.hand.count },
+                .{ self.game.dealer.handValue(0), self.game.dealer.hands[0].count },
             ),
         };
 
         const t_surf = try title.draw(ctx);
         const r_surf = try result.draw(ctx);
-        const p_surf = try player_line.draw(ctx);
+        const empty_text = try std.fmt.allocPrint(ctx.arena, "", .{});
+        const fallback_surf = try (vxfw.Text{ .text = empty_text }).draw(ctx);
+        const p_surf0 = player_line0_surf orelse fallback_surf;
+        const p_surf1 = player_line1_surf orelse fallback_surf;
         const d_surf = try dealer_line.draw(ctx);
 
         const play_surf = try self.play_again_btn.draw(ctx);
@@ -163,14 +228,33 @@ pub const ResultsScreen = struct {
         const btn_row2 = btn_row1 + play_surf.size.height + 2;
         const btn_row3 = btn_row2 + save_surf.size.height + 2;
 
-        const children = try ctx.arena.alloc(vxfw.SubSurface, 7);
-        children[0] = .{ .origin = .{ .row = row_base, .col = center_col(mid, @as(u16, t_surf.size.width)) }, .surface = t_surf };
-        children[1] = .{ .origin = .{ .row = row_base + 2, .col = center_col(mid, @as(u16, r_surf.size.width)) }, .surface = r_surf };
-        children[2] = .{ .origin = .{ .row = row_base + 4, .col = center_col(mid, @as(u16, p_surf.size.width)) }, .surface = p_surf };
-        children[3] = .{ .origin = .{ .row = row_base + 6, .col = center_col(mid, @as(u16, d_surf.size.width)) }, .surface = d_surf };
-        children[4] = .{ .origin = .{ .row = btn_row1, .col = center_col(mid, @as(u16, play_surf.size.width)) }, .surface = play_surf };
-        children[5] = .{ .origin = .{ .row = btn_row2, .col = center_col(mid, @as(u16, save_surf.size.width)) }, .surface = save_surf };
-        children[6] = .{ .origin = .{ .row = btn_row3, .col = center_col(mid, @as(u16, quit_surf.size.width)) }, .surface = quit_surf };
+        // Build children: title, result, player lines (1 or 2), dealer, buttons
+        const extra: usize = if (self.game.player.hand_count > 1) 1 else 0;
+        const total_children = 4 + extra + 3; // title, result, player0, (player1?), dealer, 3 buttons
+        const children = try ctx.arena.alloc(vxfw.SubSurface, total_children);
+        var ci: usize = 0;
+        children[ci] = .{ .origin = .{ .row = row_base, .col = center_col(mid, @as(u16, t_surf.size.width)) }, .surface = t_surf };
+        ci += 1;
+        children[ci] = .{ .origin = .{ .row = row_base + 2, .col = center_col(mid, @as(u16, r_surf.size.width)) }, .surface = r_surf };
+        ci += 1;
+        children[ci] = .{ .origin = .{ .row = row_base + 4, .col = center_col(mid, @as(u16, p_surf0.size.width)) }, .surface = p_surf0 };
+        ci += 1;
+        if (self.game.player.hand_count > 1) {
+            children[ci] = .{ .origin = .{ .row = row_base + 6, .col = center_col(mid, @as(u16, p_surf1.size.width)) }, .surface = p_surf1 };
+            ci += 1;
+            children[ci] = .{ .origin = .{ .row = row_base + 8, .col = center_col(mid, @as(u16, d_surf.size.width)) }, .surface = d_surf };
+            ci += 1;
+        } else {
+            children[ci] = .{ .origin = .{ .row = row_base + 6, .col = center_col(mid, @as(u16, d_surf.size.width)) }, .surface = d_surf };
+            ci += 1;
+        }
+
+        children[ci] = .{ .origin = .{ .row = btn_row1, .col = center_col(mid, @as(u16, play_surf.size.width)) }, .surface = play_surf };
+        ci += 1;
+        children[ci] = .{ .origin = .{ .row = btn_row2, .col = center_col(mid, @as(u16, save_surf.size.width)) }, .surface = save_surf };
+        ci += 1;
+        children[ci] = .{ .origin = .{ .row = btn_row3, .col = center_col(mid, @as(u16, quit_surf.size.width)) }, .surface = quit_surf };
+        ci += 1;
 
         // debug messages removed
 

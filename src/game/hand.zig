@@ -22,8 +22,12 @@ pub const Hand = struct {
         return self.cards[index];
     }
 
-    pub fn currentCards(self: Hand) []const Card {
-        return self.cards[0..self.count];
+    // Return a slice referencing the live hand storage. Use a pointer
+    // receiver so the returned slice does not point into a temporary
+    // value (value receivers would create a copy and return a slice
+    // to stack memory).
+    pub fn currentCards(self: *const Hand) []const Card {
+        return self.*.cards[0..self.*.count];
     }
 
     /// Standard Blackjack scoring:
@@ -34,7 +38,7 @@ pub const Hand = struct {
         var aces: u8 = 0;
 
         // Count base values
-        for (self.currentCards()) |card| {
+        for (self.cards[0..self.count]) |card| {
             total += card.rank.baseValue();
             if (card.rank == .ace) aces += 1;
         }

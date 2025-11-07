@@ -80,6 +80,7 @@ pub const Model = struct {
         model.table_screen.hit_btn.userdata = &model.table_screen;
         model.table_screen.stand_btn.userdata = &model.table_screen;
         model.table_screen.double_btn.userdata = &model.table_screen;
+        model.table_screen.split_btn.userdata = &model.table_screen;
         model.results_screen = results.ResultsScreen.init(model, &model.game);
         // ResultsScreen.init leaves play_again_btn.userdata null to avoid
         // taking the address of a stack-local value. Now that the

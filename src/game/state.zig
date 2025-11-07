@@ -20,6 +20,13 @@ pub const GameState = struct {
 
     phase: Phase = .betting,
     last_outcome: ?rules.RoundOutcome = null,
+    // Per-hand outcomes for the last round (useful when player split)
+    last_outcomes: [2]rules.RoundOutcome = .{ .push, .push },
+    // Snapshot of the player's bets and hand count for display on the
+    // results screen. We record these before applying payouts which
+    // zero the player's bets.
+    last_bets: [2]i32 = .{ 0, 0 },
+    last_hand_count: usize = 1,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -74,16 +81,21 @@ pub const GameState = struct {
         self.dealer.hit(self.deck.deal());
         self.dealer.hit(self.deck.deal());
 
-        // immediate blackjack checks
-        const outcome = rules.determineOutcome(self.player, self.dealer);
-        switch (outcome) {
-            .player_blackjack, .dealer_blackjack => {
-                self.last_outcome = outcome;
-                rules.applyPayout(&self.player, outcome);
-                self.phase = .results;
-                return;
-            },
-            else => {},
+        // immediate blackjack checks (single-hand case)
+        const p_bj = self.player.isBlackjackHand(0);
+        const d_bj = self.dealer.isBlackjackHand(0);
+        if (p_bj or d_bj) {
+            if (p_bj and d_bj) {
+                self.last_outcome = rules.RoundOutcome.push;
+            } else if (p_bj) {
+                self.last_outcome = rules.RoundOutcome.player_blackjack;
+            } else {
+                self.last_outcome = rules.RoundOutcome.dealer_blackjack;
+            }
+            // apply payout(s) as appropriate for hand 0
+            rules.applyPayoutFor(&self.player, 0, self.last_outcome.?);
+            self.phase = .results;
+            return;
         }
 
         self.phase = .player_turn;
@@ -98,14 +110,27 @@ pub const GameState = struct {
 
         self.player.hit(self.deck.deal());
 
-        if (self.player.isBust()) {
-            self.finishRound();
-            return;
+        // If current hand busts, either move to next hand or finish
+        if (self.player.isBustHand(self.player.active_hand)) {
+            // mark bust and move to next hand if available
+            if (self.player.hand_count > 1 and self.player.active_hand == 0) {
+                // move to second hand
+                self.player.active_hand = 1;
+            } else {
+                self.finishRound();
+                return;
+            }
         }
     }
 
     pub fn playerStand(self: *GameState) void {
         if (self.phase != .player_turn) return;
+
+        // If there is a second hand and we're on the first, switch to it
+        if (self.player.hand_count > 1 and self.player.active_hand == 0) {
+            self.player.active_hand = 1;
+            return;
+        }
 
         self.phase = .dealer_turn;
         self.dealerPlay();
@@ -113,18 +138,24 @@ pub const GameState = struct {
 
     pub fn playerDouble(self: *GameState) void {
         if (self.phase != .player_turn) return;
-
-        // must double only if player can afford it
-        if (!self.player.canBet(self.player.bet)) return;
+        // must double only if player can afford the additional bet for the current hand
+        const idx = self.player.active_hand;
+        const curr_bet = self.player.bets[idx];
+        if (curr_bet <= 0 or curr_bet > self.player.bankroll) return;
 
         // deduct additional bet
-        self.player.bankroll -= self.player.bet;
-        self.player.bet *= 2;
+        self.player.bankroll -= curr_bet;
+        self.player.bets[idx] = curr_bet * 2;
 
-        // exactly one card
+        // exactly one card to current hand
         self.player.hit(self.deck.deal());
 
-        if (!self.player.isBust()) {
+        if (!self.player.isBustHand(idx)) {
+            // if there is a second hand and we just finished first, move to it
+            if (self.player.hand_count > 1 and idx == 0) {
+                self.player.active_hand = 1;
+                return;
+            }
             self.phase = .dealer_turn;
             self.dealerPlay();
         } else {
@@ -132,13 +163,39 @@ pub const GameState = struct {
         }
     }
 
+    // Split the player's initial hand into two hands if allowed
+    pub fn playerSplit(self: *GameState) void {
+        if (self.phase != .player_turn) return;
+        // only allow splitting when on first hand and it has exactly 2 cards
+        if (self.player.hand_count != 1) return;
+        const h = self.player.hands[0];
+        if (h.count != 2) return;
+        const c0 = h.cards[0];
+        const c1 = h.cards[1];
+        if (c0.rank != c1.rank) return;
+
+        // must be able to match the bet
+        if (!self.player.applySplitBet()) return;
+
+        // move second card to hand 1
+        self.player.hands[1].reset();
+        self.player.hands[1].addCard(c1);
+        // shrink hand 0 to only the first card
+        self.player.hands[0].count = 1;
+        self.player.hand_count = 2;
+        self.player.active_hand = 0;
+        // Deal one additional card to each hand as per standard split rules
+        self.player.hands[0].addCard(self.deck.deal());
+        self.player.hands[1].addCard(self.deck.deal());
+    }
+
     // ───────────────────────────────────────────────
     // Dealer Phase
     // ───────────────────────────────────────────────
 
     fn dealerPlay(self: *GameState) void {
-        while (rules.dealerShouldHit(self.dealer.hand)) {
-            self.dealer.hit(self.deck.deal());
+        while (rules.dealerShouldHit(self.dealer.hands[0])) {
+            self.dealer.hands[0].addCard(self.deck.deal());
         }
         self.finishRound();
     }
@@ -148,9 +205,23 @@ pub const GameState = struct {
     // ───────────────────────────────────────────────
 
     fn finishRound(self: *GameState) void {
-        const outcome = rules.determineOutcome(self.player, self.dealer);
-        self.last_outcome = outcome;
-        rules.applyPayout(&self.player, outcome);
+        // Snapshot player's bets/hand count for the results screen before
+        // applying payouts (which will clear bets).
+        self.last_bets[0] = self.player.bets[0];
+        self.last_bets[1] = self.player.bets[1];
+        self.last_hand_count = self.player.hand_count;
+
+        // Evaluate each player hand vs dealer and apply payouts per-hand
+        // First ensure dealer value is final (dealerPlay should have been called)
+        var idx: usize = 0;
+        while (idx < self.player.hand_count) : (idx += 1) {
+            const outcome = rules.determineOutcomeForHands(self.player.hands[idx], self.dealer.hands[0]);
+            // store per-hand outcomes for UI
+            self.last_outcomes[idx] = outcome;
+            // store last_outcome as the last hand's outcome for backward compat
+            self.last_outcome = outcome;
+            rules.applyPayoutFor(&self.player, idx, outcome);
+        }
         self.phase = .results;
     }
 

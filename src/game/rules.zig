@@ -29,7 +29,7 @@ pub fn isSoft(hand: Hand) bool {
     var total: u8 = 0;
     var aces: u8 = 0;
 
-    for (hand.currentCards()) |c| {
+    for ((&hand).currentCards()) |c| {
         total += c.rank.baseValue();
         if (c.rank == .ace) aces += 1;
     }
@@ -39,27 +39,49 @@ pub fn isSoft(hand: Hand) bool {
 }
 
 /// Determine the outcome of a finished round.
-pub fn determineOutcome(player: Player, dealer: Player) RoundOutcome {
-    const p_val = player.hand.value();
-    const d_val = dealer.hand.value();
+pub fn determineOutcomeForHands(player_hand: Hand, dealer_hand: Hand) RoundOutcome {
+    const p_val = player_hand.value();
+    const d_val = dealer_hand.value();
 
     // Immediate blackjack checks (2 cards only)
-    const p_bj = player.isBlackjack();
-    const d_bj = dealer.isBlackjack();
+    const p_bj = player_hand.isBlackjack();
+    const d_bj = dealer_hand.isBlackjack();
 
     if (p_bj and d_bj) return .push;
     if (p_bj) return .player_blackjack;
     if (d_bj) return .dealer_blackjack;
 
     // Busts
-    if (player.isBust()) return .dealer_win;
-    if (dealer.isBust()) return .player_win;
+    if (player_hand.isBust()) return .dealer_win;
+    if (dealer_hand.isBust()) return .player_win;
 
     // Normal comparison
     if (p_val > d_val) return .player_win;
     if (p_val < d_val) return .dealer_win;
 
     return .push;
+}
+
+pub fn applyPayoutFor(player: *Player, hand_idx: usize, outcome: RoundOutcome) void {
+    switch (outcome) {
+        .player_blackjack => {
+            // Blackjack pays 3:2
+            player.bankroll += player.bets[hand_idx] + @divTrunc(player.bets[hand_idx] * 3, 2);
+            player.bets[hand_idx] = 0;
+        },
+        .dealer_blackjack => {
+            player.bets[hand_idx] = 0;
+        },
+        .player_win => {
+            player.winHand(hand_idx);
+        },
+        .dealer_win => {
+            player.loseHand(hand_idx);
+        },
+        .push => {
+            player.pushHand(hand_idx);
+        },
+    }
 }
 
 /// Apply bankroll changes based on the result.

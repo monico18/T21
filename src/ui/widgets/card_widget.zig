@@ -70,15 +70,55 @@ pub const CardWidget = struct {
         children[2] = try makeTextSub(ctx, height - 1, 0, "└", .{});
         children[3] = try makeTextSub(ctx, height - 1, width - 1, "┘", .{});
 
-        const rank = self.card.rank.label();
-        const suit = self.card.suit.symbol();
+        // Defensive rendering: avoid switching on possibly-corrupt enum
+        // values by mapping through index tables with bounds checks.
+        // Determine rank text via safe equality comparisons (avoids
+        // switching on enum values which can panic if the enum is corrupt).
+        var rank: []const u8 = "?";
+        const Rank = @import("../../game/card.zig").Rank;
+        if (self.card.rank == Rank.two) {
+            rank = "2";
+        } else if (self.card.rank == Rank.three) {
+            rank = "3";
+        } else if (self.card.rank == Rank.four) {
+            rank = "4";
+        } else if (self.card.rank == Rank.five) {
+            rank = "5";
+        } else if (self.card.rank == Rank.six) {
+            rank = "6";
+        } else if (self.card.rank == Rank.seven) {
+            rank = "7";
+        } else if (self.card.rank == Rank.eight) {
+            rank = "8";
+        } else if (self.card.rank == Rank.nine) {
+            rank = "9";
+        } else if (self.card.rank == Rank.ten) {
+            rank = "10";
+        } else if (self.card.rank == Rank.jack) {
+            rank = "J";
+        } else if (self.card.rank == Rank.queen) {
+            rank = "Q";
+        } else if (self.card.rank == Rank.king) {
+            rank = "K";
+        } else if (self.card.rank == Rank.ace) {
+            rank = "A";
+        }
 
-        // Choose a style for red suits (hearts, diamonds). If the suit is
-        // red, use a red foreground; otherwise use the default style.
-        const suit_style = if (self.card.suit.isRed())
-            vaxis.Style{ .fg = vaxis.Color{ .rgb = [3]u8{ 0xFF, 0x00, 0x00 } } }
-        else
-            vaxis.Style{};
+        // Suit symbol and style via equality checks as well
+        var suit: []const u8 = "?";
+        var suit_style: vaxis.Style = vaxis.Style{};
+        const Suit = @import("../../game/card.zig").Suit;
+        if (self.card.suit == Suit.hearts) {
+            suit = "♥";
+            suit_style = vaxis.Style{ .fg = vaxis.Color{ .rgb = [3]u8{ 0xFF, 0x00, 0x00 } } };
+        } else if (self.card.suit == Suit.diamonds) {
+            suit = "♦";
+            suit_style = vaxis.Style{ .fg = vaxis.Color{ .rgb = [3]u8{ 0xFF, 0x00, 0x00 } } };
+        } else if (self.card.suit == Suit.clubs) {
+            suit = "♣";
+        } else if (self.card.suit == Suit.spades) {
+            suit = "♠";
+        }
 
         // top-left rank and suit (rank in default, suit colored for red suits)
         children[4] = try makeTextSub(ctx, 1, 1, rank, .{});

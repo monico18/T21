@@ -18,7 +18,7 @@ pub const Suit = enum {
     pub fn isRed(self: Suit) bool {
         return switch (self) {
             .hearts, .diamonds => true,
-            else => false,
+            .clubs, .spades => false,
         };
     }
 };
@@ -41,7 +41,7 @@ pub const Rank = enum {
     /// Returns the Blackjack *base* value of the rank.
     /// Ace is treated as 1 here — flexibility handled in `hand.zig`
     pub fn baseValue(self: Rank) u8 {
-        return switch (self) {
+        return @as(u8, switch (self) {
             .two => 2,
             .three => 3,
             .four => 4,
@@ -52,7 +52,7 @@ pub const Rank = enum {
             .nine => 9,
             .ten, .jack, .queen, .king => 10,
             .ace => 1,
-        };
+        });
     }
 
     pub fn label(self: Rank) []const u8 {
