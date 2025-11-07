@@ -102,12 +102,18 @@ jobs:
         with:
           path: ./artifacts
 
+      - name: List downloaded artifacts (diagnostic)
+        run: |
+          echo "Artifacts directory contents:"
+          ls -laR ./artifacts || true
+
       - name: Create GitHub Release and upload binaries
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.RELEASE_TAG }}
           name: Release ${{ env.RELEASE_TAG }}
-          files: ./artifacts/**
+          # Upload only files that look like our built binaries (T21...)
+          files: ./artifacts/**/T21*
           overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
