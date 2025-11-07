@@ -195,54 +195,85 @@ jobs:
       - name: Print Zig version
         run: zig version
 
-      release:
-        name: Create GitHub Release and upload artifacts
-        runs-on: ubuntu-latest
-        needs: build
-        if: needs.build.result == 'success' && github.ref == 'refs/heads/master'
-        steps:
-          - name: Download all job artifacts
-            uses: actions/download-artifact@v4
-            with:
-              path: ./artifacts
+      - name: Build
+        run: zig build
 
-          - name: List downloaded artifacts (diagnostic)
-            run: |
-              echo "Artifacts directory contents:"
-              ls -laR ./artifacts || true
+      - name: Rename binary to include OS and short SHA
+        shell: bash
+        run: |
+          set -e
+          BIN=zig-out/bin/T21
+          if [ -f "$BIN" ]; then
+            SHORT_SHA=${GITHUB_SHA:0:7}
+            # normalize os label to short name
+            OS_LABEL=${{ matrix.os }}
+            OS_LABEL=${OS_LABEL//ubuntu-latest/linux}
+            OS_LABEL=${OS_LABEL//macos-latest/macos}
+            OUT="zig-out/bin/T21-${OS_LABEL}-v${{ github.run_number }}-${SHORT_SHA}"
+            echo "Renaming $BIN -> $OUT"
+            mv "$BIN" "$OUT"
+          else
+            echo "Binary not found at $BIN, skipping rename"
+          fi
 
-          - name: Compute release tag from artifacts
-            run: |
-              set -e
-              SHORT_SHA=${GITHUB_SHA:0:7}
-              HAS_LINUX=0
-              HAS_MACOS=0
-              # look for known artifact name patterns produced by the build job
-              if ls ./artifacts/**/T21*ubuntu* 1> /dev/null 2>&1; then HAS_LINUX=1; fi
-              if ls ./artifacts/**/T21*macos* 1> /dev/null 2>&1; then HAS_MACOS=1; fi
-              if [ "$HAS_LINUX" = "1" ] && [ "$HAS_MACOS" = "1" ]; then
-                OS_LABEL="linux-macos"
-              elif [ "$HAS_LINUX" = "1" ]; then
-                OS_LABEL="linux"
-              elif [ "$HAS_MACOS" = "1" ]; then
-                OS_LABEL="macos"
-              else
-                OS_LABEL="unknown"
-              fi
-              RELEASE_TAG="T21-${OS_LABEL}-${SHORT_SHA}"
-              echo "Computed RELEASE_TAG=$RELEASE_TAG"
-              echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+      - name: Show built binaries
+        run: ls -la zig-out/bin || true
 
-          - name: Create GitHub Release and upload binaries
-            uses: ncipollo/release-action@v1
-            with:
-              tag: ${{ env.RELEASE_TAG }}
-              name: Release ${{ env.RELEASE_TAG }}
-              # Upload only files that look like our built binaries (T21...)
-              artifacts: |
-                ./artifacts/**/T21*
-              makeLatest: true
-              token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload built binary
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: T21-${{ matrix.os }}
+          path: |
+            zig-out/bin/*
+
+  release:
+    name: Create GitHub Release and upload artifacts
+    runs-on: ubuntu-latest
+    needs: build
+    if: needs.build.result == 'success' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Download all job artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: List downloaded artifacts (diagnostic)
+        run: |
+          echo "Artifacts directory contents:"
+          ls -laR ./artifacts || true
+
+      - name: Compute release tag from artifacts
+        shell: bash
+        run: |
+          set -e
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          HAS_LINUX=0
+          HAS_MACOS=0
+          if ls ./artifacts/*/T21*linux* 1> /dev/null 2>&1; then HAS_LINUX=1; fi
+          if ls ./artifacts/*/T21*macos* 1> /dev/null 2>&1; then HAS_MACOS=1; fi
+          if [ "$HAS_LINUX" = "1" ] && [ "$HAS_MACOS" = "1" ]; then
+            OS_LABEL="linux-macos"
+          elif [ "$HAS_LINUX" = "1" ]; then
+            OS_LABEL="linux"
+          elif [ "$HAS_MACOS" = "1" ]; then
+            OS_LABEL="macos"
+          else
+            OS_LABEL="unknown"
+          fi
+          RELEASE_TAG="T21-${OS_LABEL}-${SHORT_SHA}"
+          echo "Computed RELEASE_TAG=$RELEASE_TAG"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+
+      - name: Create GitHub Release and upload binaries
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+          name: Release ${{ env.RELEASE_TAG }}
+          artifacts: |
+            ./artifacts/*/T21*
+          makeLatest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compute release tag
         run: |
           set -e
