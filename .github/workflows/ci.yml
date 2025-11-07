@@ -60,6 +60,7 @@ jobs:
         run: zig build
 
       - name: Rename binary to include OS and short SHA
+        shell: bash
         run: |
           set -e
           BIN=zig-out/bin/T21
@@ -104,13 +105,15 @@ jobs:
           ls -laR ./artifacts || true
 
       - name: Compute release tag from artifacts
+        shell: bash
         run: |
           set -e
           SHORT_SHA=${GITHUB_SHA:0:7}
           HAS_LINUX=0
           HAS_MACOS=0
-          if ls ./artifacts/**/T21*linux* 1> /dev/null 2>&1; then HAS_LINUX=1; fi
-          if ls ./artifacts/**/T21*macos* 1> /dev/null 2>&1; then HAS_MACOS=1; fi
+          # match one-level artifact directories created by actions/download-artifact
+          if ls ./artifacts/*/T21*linux* 1> /dev/null 2>&1; then HAS_LINUX=1; fi
+          if ls ./artifacts/*/T21*macos* 1> /dev/null 2>&1; then HAS_MACOS=1; fi
           if [ "$HAS_LINUX" = "1" ] && [ "$HAS_MACOS" = "1" ]; then
             OS_LABEL="linux-macos"
           elif [ "$HAS_LINUX" = "1" ]; then
@@ -130,9 +133,10 @@ jobs:
           tag: ${{ env.RELEASE_TAG }}
           name: Release ${{ env.RELEASE_TAG }}
           artifacts: |
-            ./artifacts/**/T21*
+            ./artifacts/*/T21*
           makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}
+
 name: CI
 
 on:
