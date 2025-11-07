@@ -54,17 +54,17 @@ pub const Model = struct {
         // BettingScreen.init leaves button userdata null to avoid taking the
         // address of a stack-local value. Set userdata to point to the
         // stored betting_screen now that it's placed inside `model`.
-        model.betting_screen.plus_btn.userdata = &model.betting_screen;
-        model.betting_screen.plus25_btn.userdata = &model.betting_screen;
-        model.betting_screen.plus50_btn.userdata = &model.betting_screen;
-        model.betting_screen.plus_btn.userdata = &model.betting_screen;
-        model.betting_screen.plus25_btn.userdata = &model.betting_screen;
-        model.betting_screen.plus50_btn.userdata = &model.betting_screen;
+    model.betting_screen.plus_btn.userdata = &model.betting_screen;
+    model.betting_screen.plus25_btn.userdata = &model.betting_screen;
+    model.betting_screen.plus50_btn.userdata = &model.betting_screen;
+    model.betting_screen.plus100_btn.userdata = &model.betting_screen;
+    model.betting_screen.plus10_btn.userdata = &model.betting_screen;
         model.betting_screen.plus100_btn.userdata = &model.betting_screen;
-        model.betting_screen.minus_btn.userdata = &model.betting_screen;
-        model.betting_screen.minus25_btn.userdata = &model.betting_screen;
-        model.betting_screen.minus50_btn.userdata = &model.betting_screen;
-        model.betting_screen.minus100_btn.userdata = &model.betting_screen;
+    model.betting_screen.minus_btn.userdata = &model.betting_screen;
+    model.betting_screen.minus25_btn.userdata = &model.betting_screen;
+    model.betting_screen.minus50_btn.userdata = &model.betting_screen;
+    model.betting_screen.minus100_btn.userdata = &model.betting_screen;
+    model.betting_screen.minus10_btn.userdata = &model.betting_screen;
         model.betting_screen.all_in_btn.userdata = &model.betting_screen;
         model.betting_screen.clear_btn.userdata = &model.betting_screen;
         model.betting_screen.confirm_btn.userdata = &model.betting_screen;

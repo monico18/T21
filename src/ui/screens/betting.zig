@@ -52,12 +52,8 @@ pub const BettingScreen = struct {
         const onMinus = struct {
             fn cb(userdata: ?*anyopaque, ctx: *vxfw.EventContext) anyerror!void {
                 const self: *BettingScreen = @ptrCast(@alignCast(userdata.?));
-                // Prevent single-step subtraction from reaching 0; keep minimum 1
-                if (self.bet > 1) {
-                    self.bet -= 1;
-                } else {
-                    self.bet = 1;
-                }
+                // Allow decrement to reach 0 (user requested).
+                if (self.bet > 0) self.bet -= 1;
                 _ = ctx.consumeAndRedraw();
             }
         }.cb;
@@ -154,7 +150,7 @@ pub const BettingScreen = struct {
                 if (self.bet > 10) {
                     self.bet -= 10;
                 } else {
-                    self.bet = 1; // keep minimum 1
+                    self.bet = 0; // allow zero
                 }
                 _ = ctx.consumeAndRedraw();
             }
