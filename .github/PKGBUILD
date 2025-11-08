@@ -23,7 +23,7 @@ build() {
 
     cd "$SRC_DIR"
     # Build release binary with Zig
-    zig build -Drelease-safe=true
+    zig build
 }
 
 package() {
