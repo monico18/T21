@@ -169,19 +169,12 @@ jobs:
             cp .github/PKGBUILD pkgbuild_temp/PKGBUILD
             [ -f README.md ] && cp README.md pkgbuild_temp/
             [ -f LICENSE ] && cp LICENSE pkgbuild_temp/
-            # include the linux binary (if present) inside the tarball under bin/
-            BIN_SRC=$(ls zig-out/bin/T21-linux-${RELEASE_VERSION}* 2>/dev/null | head -n1 || true)
-            if [ -n "$BIN_SRC" ]; then
-              mkdir -p pkgbuild_temp/bin
-              cp "$BIN_SRC" pkgbuild_temp/bin/T21
-              chmod 0755 pkgbuild_temp/bin/T21
-              echo "Included binary $BIN_SRC into PKGBUILD tarball"
-            else
-              echo "No linux binary found to include in PKGBUILD tarball"
-            fi
+            # update pkgver inside the copied PKGBUILD so it matches RELEASE_VERSION
+            # pkgver lines usually look like: pkgver=0.1.x
+            sed -i "s/^pkgver=.*/pkgver=${RELEASE_VERSION}/" pkgbuild_temp/PKGBUILD || true
             tar -czf "$PKG_TGZ" -C pkgbuild_temp .
             rm -rf pkgbuild_temp
-            echo "Created Arch PKGBUILD artifact: $PKG_TGZ"
+            echo "Created Arch PKGBUILD artifact (no binary included): $PKG_TGZ"
           else
             echo "No .github/PKGBUILD found, skipping"
           fi
