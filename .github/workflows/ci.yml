@@ -96,7 +96,7 @@ jobs:
           OS_LABEL=${OS_LABEL//macos-latest/macos}
           SHORT_SHA=${SHORT_SHA:-${GITHUB_SHA:0:7}}
           RELEASE_VERSION=${RELEASE_VERSION:-0.1.0}
-          OUT=zig-out/bin/T21-${OS_LABEL}-${RELEASE_VERSION}-${SHORT_SHA}
+          OUT=zig-out/bin/T21-${OS_LABEL}-${RELEASE_VERSION}
           echo "Renaming $BIN -> $OUT"
           mv "$BIN" "$OUT"
 
@@ -119,7 +119,7 @@ jobs:
           mkdir -p dmg-root
           cp "$BIN_PATH" dmg-root/T21
           chmod 0755 dmg-root/T21
-          DMG_NAME=T21-macos-${RELEASE_VERSION}-${SHORT_SHA}.dmg
+          DMG_NAME=T21-macos-${RELEASE_VERSION}.dmg
           echo "Creating $DMG_NAME"
           hdiutil create -srcfolder dmg-root -volname "T21" -ov -format UDZO "$DMG_NAME"
           mv "$DMG_NAME" zig-out/bin/
@@ -139,10 +139,10 @@ jobs:
           mkdir -p pkg/DEBIAN pkg/usr/bin
           cp "$BIN_PATH" pkg/usr/bin/T21
           chmod 0755 pkg/usr/bin/T21
-          DEB_NAME=T21-linux-${RELEASE_VERSION}-${SHORT_SHA}.deb
+          DEB_NAME=T21-linux-${RELEASE_VERSION}.deb
           printf '%s\n' \
             "Package: T21" \
-            "Version: ${RELEASE_VERSION}+${SHORT_SHA}" \
+            "Version: ${RELEASE_VERSION}" \
             "Section: games" \
             "Priority: optional" \
             "Architecture: amd64" \
@@ -151,6 +151,28 @@ jobs:
             > pkg/DEBIAN/control
           dpkg-deb --build pkg "$DEB_NAME"
           mv "$DEB_NAME" zig-out/bin/
+
+      - name: Package PKGBUILD for Arch Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          RELEASE_VERSION=${RELEASE_VERSION:-0.1.0}
+          OUTDIR=zig-out/bin
+          mkdir -p "$OUTDIR"
+          if [ -f ".github/PKGBUILD" ]; then
+            PKG_TGZ="${OUTDIR}/T21-archlinux-${RELEASE_VERSION}.tar.gz"
+            rm -rf pkgbuild_temp
+            mkdir -p pkgbuild_temp
+            cp .github/PKGBUILD pkgbuild_temp/PKGBUILD
+            [ -f README.md ] && cp README.md pkgbuild_temp/
+            [ -f LICENSE ] && cp LICENSE pkgbuild_temp/
+            tar -czf "$PKG_TGZ" -C pkgbuild_temp .
+            rm -rf pkgbuild_temp
+            echo "Created Arch PKGBUILD artifact: $PKG_TGZ"
+          else
+            echo "No .github/PKGBUILD found, skipping"
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -187,7 +209,7 @@ jobs:
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
           echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
           echo "RELEASE_NAME=${RELEASE_NAME}" >> $GITHUB_ENV
-          echo "Computed RELEASE_VERSION=${RELEASE_VERSION} (existing releases: ${RELEASE_COUNT})"
+          echo "Computed RELEASE_VERSION=${RELEASE_VERSION}"
 
       - name: Create GitHub Release and attach artifacts
         uses: ncipollo/release-action@v1
