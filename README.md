@@ -28,13 +28,69 @@ From the repository root:
 zig build
 ```
 
-Run
----
-After building the executable is placed in `zig-out/bin/T21`:
+Install
+-------
+Several release artifacts are published on GitHub Releases (example names):
 
-```bash
+- `T21-linux-<version>.deb`
+- `T21-macos-<version>.dmg`
+- `T21-archlinux-<version>.tar.gz` (contains `PKGBUILD`, README, LICENSE)
+
+Install from source
+-------------------
+Build from the repo and run the binary directly:
+
+```fish
+# build (from project root)
+zig build
+
+# run the built binary
 ./zig-out/bin/T21
 ```
+
+Install from Arch/PKGBUILD
+--------------------------
+Download the `T21-archlinux-<version>.tar.gz` from the Releases page, extract it and build with `makepkg`:
+
+```bash
+tar xzf T21-archlinux-<version>.tar.gz
+cd T21-archlinux-<version>
+# builds and installs the package (requires base-devel)
+makepkg -si
+```
+
+Install from .deb (Debian/Ubuntu)
+---------------------------------
+Download `T21-linux-<version>.deb` from Releases and install with `apt` or `dpkg`:
+
+```bash
+# recommended (resolves deps):
+sudo apt install ./T21-linux-<version>.deb
+
+# or using dpkg directly:
+sudo dpkg -i T21-linux-<version>.deb
+sudo apt-get install -f    # fix missing dependencies, if any
+```
+
+Install from .dmg (macOS)
+-------------------------
+Download `T21-macos-<version>.dmg`, mount it and copy the T21 binary or app bundle to `/Applications` or run it in-place:
+
+```bash
+# mount the dmg (macOS)
+hdiutil attach T21-macos-<version>.dmg
+
+# after mounting, copy the app or binary from the mounted volume to /Applications
+cp -R /Volumes/T21/T21.app /Applications/
+
+# eject when done
+hdiutil detach /Volumes/T21
+```
+
+Where to get packages
+----------------------
+Built packages and release archives are attached to the project's GitHub Releases for each release tag. Look for artifacts named `T21-*-<version>*` on the Releases page.
+
 
 Controls
 --------
