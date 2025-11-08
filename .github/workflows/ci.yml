@@ -107,11 +107,11 @@ jobs:
           DEB_NAME="T21-linux-${SHORT_SHA}.deb"
           printf '%s\n' \
             "Package: T21" \
-            "Version: ${SHORT_SHA}" \
+            "Version: 0.0.0+${SHORT_SHA}" \
             "Section: games" \
             "Priority: optional" \
             "Architecture: amd64" \
-            "Maintainer: T21 CI <noreply@example.com>" \
+            "Maintainer: T21 CI <tomassantos2002@outlook.com>" \
             "Description: T21 terminal game" \
             > pkg/DEBIAN/control
           dpkg-deb --build pkg "$DEB_NAME"
