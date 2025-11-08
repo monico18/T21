@@ -90,6 +90,33 @@ jobs:
       - name: Show built binaries
         run: ls -la zig-out/bin || true
 
+      - name: Build .deb package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          mkdir -p pkg/DEBIAN pkg/usr/bin
+          BIN_PATH=$(ls zig-out/bin/T21-linux-* 2>/dev/null | head -n1 || true)
+          if [ -z "$BIN_PATH" ]; then
+            echo "No linux binary found to package, skipping .deb"
+            exit 0
+          fi
+          cp "$BIN_PATH" pkg/usr/bin/T21
+          chmod 0755 pkg/usr/bin/T21
+          DEB_NAME="T21-linux-${SHORT_SHA}.deb"
+          printf '%s\n' \
+            "Package: T21" \
+            "Version: ${SHORT_SHA}" \
+            "Section: games" \
+            "Priority: optional" \
+            "Architecture: amd64" \
+            "Maintainer: T21 CI <noreply@example.com>" \
+            "Description: T21 terminal game" \
+            > pkg/DEBIAN/control
+          dpkg-deb --build pkg "$DEB_NAME"
+          mv "$DEB_NAME" zig-out/bin/
+
       - name: Upload built binary
         if: success()
         uses: actions/upload-artifact@v4
