@@ -5,13 +5,13 @@ on:
     paths:
       - 'src/**'
       - 'build.zig'
-      - '.github/workflows/ci.yml'
+      - '.github/'
       - 'build.zig.zon'
   pull_request:
     paths:
       - 'src/**'
       - 'build.zig'
-      - '.github/workflows/ci.yml'
+      - '.github/'
       - 'build.zig.zon'
 
 permissions:
