@@ -1,0 +1,44 @@
+# Maintainer: Your Name <you@example.com>
+pkgname=T21
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="T21 terminal Blackjack game"
+arch=('x86_64')
+url="https://github.com/REPLACE_WITH_GITHUB_USER/${pkgname}"
+license=('GPL-2.0-only')
+depends=()
+makedepends=('zig' 'git')
+source=("https://github.com/REPLACE_WITH_GITHUB_USER/${pkgname}/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP') # replace with real checksum for release packaging
+
+build() {
+    cd "$srcdir"
+
+    # find extracted source directory (GitHub archive extracts to ${pkgname}-<ver>)
+    SRC_DIR="$(find . -maxdepth 1 -type d -name "${pkgname}*" | sed -n '1p')"
+    if [ -z "$SRC_DIR" ]; then
+        echo "source directory not found"
+        return 1
+    fi
+
+    cd "$SRC_DIR"
+    # Build release binary with Zig
+    zig build -Drelease-safe=true
+}
+
+package() {
+    cd "$srcdir"
+    SRC_DIR="$(find . -maxdepth 1 -type d -name "${pkgname}*" | sed -n '1p')"
+    cd "$SRC_DIR"
+
+    # install binary
+    install -Dm755 "zig-out/bin/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
+
+    # docs and license
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+    fi
+    if [ -f README.md ]; then
+        install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+    fi
+}
