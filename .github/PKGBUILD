@@ -1,6 +1,6 @@
-# Maintainer: Your Name <you@example.com>
+# Maintainer: Tomas Santos <tomassantos2002@outlook.com>
 pkgname=T21
-pkgver=0.1.0
+pkgver=0.1.x
 pkgrel=1
 pkgdesc="T21 terminal Blackjack game"
 arch=('x86_64')
