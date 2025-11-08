@@ -2,7 +2,17 @@ name: CI
 
 on:
   push:
+    paths:
+      - 'src/**'
+      - 'build.zig'
+      - '.github/workflows/ci.yml'
+      - 'build.zig.zon'
   pull_request:
+    paths:
+      - 'src/**'
+      - 'build.zig'
+      - '.github/workflows/ci.yml'
+      - 'build.zig.zon'
 
 permissions:
   contents: write
