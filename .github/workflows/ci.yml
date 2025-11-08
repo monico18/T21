@@ -48,6 +48,9 @@ jobs:
           echo "RELEASE_VERSION=${RELEASE_VERSION}"
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
           echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          # also expose as a step output for action interpolation if needed
+          echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "release_count=${RELEASE_COUNT}" >> $GITHUB_OUTPUT
 
       - name: Download and extract Zig (Linux)
         if: runner.os == 'Linux'
@@ -96,7 +99,6 @@ jobs:
           OS_LABEL=${{ matrix.os }}
           OS_LABEL=${OS_LABEL//ubuntu-latest/linux}
           OS_LABEL=${OS_LABEL//macos-latest/macos}
-          SHORT_SHA=${SHORT_SHA:-${GITHUB_SHA:0:7}}
           RELEASE_VERSION=${RELEASE_VERSION:-0.1.0}
           OUT=zig-out/bin/T21-${OS_LABEL}-${RELEASE_VERSION}
           echo "Renaming $BIN -> $OUT"
@@ -110,9 +112,8 @@ jobs:
         shell: bash
         run: |
           set -e
-          SHORT_SHA=${SHORT_SHA:-${GITHUB_SHA:0:7}}
           RELEASE_VERSION=${RELEASE_VERSION:-0.1.0}
-          BIN_PATH=$(ls zig-out/bin/T21-macos-${RELEASE_VERSION}-* 2>/dev/null | head -n1 || true)
+          BIN_PATH=$(ls zig-out/bin/T21-macos-${RELEASE_VERSION}* 2>/dev/null | head -n1 || true)
           if [ -z "$BIN_PATH" ]; then
             echo "No macOS binary for ${RELEASE_VERSION}, skipping dmg"
             exit 0
@@ -131,9 +132,8 @@ jobs:
         shell: bash
         run: |
           set -e
-          SHORT_SHA=${SHORT_SHA:-${GITHUB_SHA:0:7}}
           RELEASE_VERSION=${RELEASE_VERSION:-0.1.0}
-          BIN_PATH=$(ls zig-out/bin/T21-linux-${RELEASE_VERSION}-* 2>/dev/null | head -n1 || true)
+          BIN_PATH=$(ls zig-out/bin/T21-linux-${RELEASE_VERSION}* 2>/dev/null | head -n1 || true)
           if [ -z "$BIN_PATH" ]; then
             echo "No linux binary for ${RELEASE_VERSION}, skipping deb"
             exit 0
@@ -180,7 +180,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: T21-${{ matrix.os }}-${{ env.RELEASE_VERSION }}
+          name: T21-${{ matrix.os }}
           path: |
             zig-out/bin/*
 
