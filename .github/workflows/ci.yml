@@ -6,14 +6,14 @@ on:
       - 'src/**'
       - 'build.zig'
       - '.github/**'
-      - '.github/woekflows/**'
+      - '.github/workflows/**'
       - 'build.zig.zon'
   pull_request:
     paths:
       - 'src/**'
       - 'build.zig'
       - '.github/**'
-      - '.github/woekflows/**'
+      - '.github/workflows/**'
       - 'build.zig.zon'
 
 permissions:
