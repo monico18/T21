@@ -90,6 +90,26 @@ jobs:
       - name: Show built binaries
         run: ls -la zig-out/bin || true
 
+      - name: Build .dmg package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          BIN_PATH=$(ls zig-out/bin/T21-macos-* 2>/dev/null | head -n1 || true)
+          if [ -z "$BIN_PATH" ]; then
+            echo "No macOS binary found to package, skipping .dmg"
+            exit 0
+          fi
+          rm -rf dmg-root
+          mkdir -p dmg-root
+          cp "$BIN_PATH" dmg-root/T21
+          chmod 0755 dmg-root/T21
+          DMG_NAME="T21-macos-${SHORT_SHA}.dmg"
+          echo "Creating $DMG_NAME"
+          hdiutil create -srcfolder dmg-root -volname "T21" -ov -format UDZO "$DMG_NAME"
+          mv "$DMG_NAME" zig-out/bin/
+
       - name: Build .deb package (Linux)
         if: runner.os == 'Linux'
         shell: bash
